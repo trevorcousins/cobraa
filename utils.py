@@ -49,8 +49,8 @@ def get_het_mask_indices(in_path,bin_size):
     hets = data[1].values -1 # read hets position, 0 indexed
 
     hets_diffs = [hets[i+1]-hets[i] for i in range(0,len(hets)-1)] # difference in bps between each het
-    seq_length = hets[-1] + int(np.mean(hets_diffs)) # estimate seq_length; assume the last homozygous strech is of length (mean_difference_between_hets)
-    # seq_length = hets[-1] + 2*bin_size
+    # seq_length = hets[-1] + int(np.mean(hets_diffs)) # estimate seq_length; assume the last homozygous strech is of length (mean_difference_between_hets)
+    seq_length = hets[-1] + 2*bin_size
     hets_sequence = np.zeros(seq_length,dtype=int)
     masks_sequence = np.zeros(seq_length,dtype=int)
     hets_sequence[hets] = 1
