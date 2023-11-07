@@ -294,7 +294,7 @@ def L_precomputations(D,T,lambda_A,lambda_B,T_S_li,T_E_li,gamma,e_betas):
 # (Pdb) K(D,T,lambda_A,0,beta,2)
 
 # upper diagonal
-# @njit
+@njit
 def upper_Q(D,T,lambda_A,lambda_B,T_S_li,T_E_li,gamma,e_betas,Q,L_s_A,L_s_B,L_A,L_B,L_Tse_s_A,L_Tse_s_B,K_array):
     # D is int for number of time states
     # T is array of time interval boundaries in coalescent units
