@@ -203,7 +203,7 @@ def time_intervals(D,spread_1,spread_2,final_T_factor=None):
 def get_loglikelihood(BW,output_path):
     sequence, B_sequence, B_vals,R_sequence, R_vals = BW.sequence_fcn(0)
     tm_dummy = Transition_Matrix(D=BW.D,spread_1=BW.spread_1,spread_2=BW.spread_2,midpoint_transitions=BW.midpoint_transitions) # initialise transition matrix object
-    tm_dummy.write_tm(lambda_A=BW.lambda_A_current,lambda_B=None,T_S_index=None,T_E_index=None,gamma=None,check=True,rho=BW.rho,exponential=not BW.recombnoexp) # write transition matrix for different rho values
+    tm_dummy.write_tm(lambda_A=BW.lambda_A_current,lambda_B=BW.lambda_B_current,T_S_index=BW.T_S_index,T_E_index=BW.T_E_index,gamma=BW.gamma_current,check=True,rho=BW.rho,exponential=not BW.recombnoexp) # write transition matrix for different rho values
     # Q_current_array = write_Q_array_withR(tm_dummy.Q,R_vals,R_vals[np.argmin(np.abs(R_vals-1))],BW.D)
     Q_current_array = write_Q_array_withR(tm_dummy.Q,R_vals,BW.rho,BW.D,BW.spread_1,BW.spread_2,BW.lambda_A_current,BW.midpoint_transitions) 
 
@@ -222,7 +222,8 @@ def get_loglikelihood(BW,output_path):
     # time_taken = end - start
     # print(f'\t\t\ttime taken to write different tms: {time_taken}',flush=True)
     
-    expectation_steps = Parallel(n_jobs=BW.num_files, backend='loky')(delayed(calculate_transition_evidence)(BW.sequence_fcn,file,BW.D,BW.init_dist,BW.E_masked,Q_current_array,BW.theta,BW.rho,BW.bin_size,BW.j_max,BW.midpoints,BW.spread_1,BW.spread_2,BW.midpoint_transitions) for file in range(BW.num_files)) 
+    expectation_steps = Parallel(n_jobs=BW.cores, backend='loky')(delayed(calculate_transition_evidence)(BW.sequence_fcn,file,BW.D,BW.init_dist,BW.E_masked,Q_current_array,BW.theta,BW.rho,BW.bin_size,BW.j_max,BW.midpoints,BW.spread_1,BW.spread_2,BW.midpoint_transitions) for file in range(BW.num_files)) 
+    
     new_ll = 0
     for i in range(BW.num_files):
         new_ll += expectation_steps[i][1]

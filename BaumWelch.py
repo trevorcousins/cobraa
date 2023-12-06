@@ -89,9 +89,9 @@ class BaumWelch:
             
             tm_first_guess = Transition_Matrix(D=self.D,spread_1=self.spread_1,spread_2=self.spread_2,midpoint_transitions=self.midpoint_transitions) # initialise transition matrix object
             # first guess is structured that is given by user
-            self.Q_first_guess = tm_first_guess.write_tm(lambda_A=self.lambda_A_current,lambda_B=self.lambda_B_current,T_S_index=self.T_S_index,T_E_index=self.T_E_index,gamma=self.gamma_current,check=True,rho=self.rho) # initialise transition matrix object
+            self.Q_first_guess = tm_first_guess.write_tm(lambda_A=self.lambda_A_current,lambda_B=self.lambda_B_current,T_S_index=self.T_S_index,T_E_index=self.T_E_index,gamma=self.gamma_current,check=True,rho=self.rho,exponential=not self.recombnoexp) # initialise transition matrix object
             # The below line sets the first guess as panmictic with lambda_A = one everywhere. This is implemented in BaumWelch211128.py
-            # self.Q_first_guess = tm_first_guess.write_tm(lambda_A=np.ones(self.D),lambda_B=None,T_S_index=None,T_E_index=None,gamma=None,check=True,rho=rho) # initialise transition matrix object
+            
             self.Q_current = self.Q_first_guess # set the current Q as the first guess, initially
             self.init_dist = get_stationary_distribution_theory(self.Q_current)  
             # self.init_dist = np.ones(D)/D
@@ -107,7 +107,7 @@ class BaumWelch:
             # print('Doing panmictic inference.')
 
             tm_first_guess = Transition_Matrix(D=self.D,spread_1=self.spread_1,spread_2=self.spread_2,midpoint_transitions=self.midpoint_transitions) # initialise transition matrix object
-            self.Q_first_guess = tm_first_guess.write_tm(lambda_A=self.lambda_A_current,lambda_B=None,T_S_index=None,T_E_index=None,gamma=None,check=True,rho=self.rho) # initialise transition matrix object
+            self.Q_first_guess = tm_first_guess.write_tm(lambda_A=self.lambda_A_current,lambda_B=None,T_S_index=None,T_E_index=None,gamma=None,check=True,rho=self.rho,exponential=not self.recombnoexp) # initialise transition matrix object
             self.Q_current = self.Q_first_guess # set the current Q as the first guess
             self.init_dist = get_stationary_distribution_theory(self.Q_current)
             self.lambda_B_current = None
@@ -122,8 +122,8 @@ class BaumWelch:
         lambda_boundaries = (lambda_lwr_bnd,lambda_upr_bnd)
         self.gamma_lwr_bnd = gamma_lwr_bnd
         self.gamma_upr_bnd = gamma_upr_bnd
-        self.lambda_bnds = ((lambda_boundaries,) *(self.num_lambda_A_params-1)) + ((lambda_lwr_bnd,10),)
-
+        # self.lambda_bnds = ((lambda_boundaries,) *(self.num_lambda_A_params-1)) + ((lambda_lwr_bnd,10),)
+        self.lambda_bnds = ((lambda_boundaries,) *(self.num_lambda_A_params))
 
     # function to generate sequence from succint sequence_memsaver (sequences_info[i][0])
     # input: which file to use (integer, for label)
@@ -299,7 +299,7 @@ class BaumWelch:
             # write new panmictic matrix
             self.lambda_A_values = optimised_params
             self.lambda_A_current = write_lambda_optimise(self.lambda_A_segs,self.lambda_A_values,self.lambda_A_current)
-            self.Q_current = tm_current.write_tm(lambda_A=self.lambda_A_current,lambda_B=None,T_S_index=None,T_E_index=None,gamma=None,check=True,rho=self.rho) # initialise transition matrix object
+            self.Q_current = tm_current.write_tm(lambda_A=self.lambda_A_current,lambda_B=None,T_S_index=None,T_E_index=None,gamma=None,check=True,rho=self.rho,exponential=not self.recombnoexp) # initialise transition matrix object
         
         else: # structure
             # write new structured matrix
@@ -310,7 +310,7 @@ class BaumWelch:
             self.gamma_current = optimised_params[-1] 
             # lambda_A_current = self.params_current[0:self.D]
             # lambda_B_current = np.ones(self.D)*self.params_current[-2]
-            self.Q_current = tm_current.write_tm(lambda_A=self.lambda_A_current,lambda_B=self.lambda_B_current,T_S_index=self.T_S_index,T_E_index=self.T_E_index,gamma=self.gamma_current,check=True,rho=self.rho) # initialise transition matrix object
+            self.Q_current = tm_current.write_tm(lambda_A=self.lambda_A_current,lambda_B=self.lambda_B_current,T_S_index=self.T_S_index,T_E_index=self.T_E_index,gamma=self.gamma_current,check=True,rho=self.rho,exponential=not self.recombnoexp) # initialise transition matrix object
         del tm_current
         return None
 
@@ -324,10 +324,10 @@ class BaumWelch:
             lambda_lwr_bnd = min(self.lambda_bnds[0])
             lambda_upr_bnd = max(self.lambda_bnds[0])
             lambda_boundaries = (lambda_lwr_bnd,lambda_upr_bnd)
+            lambda_boundaries_struct = (self.lambda_lwr_bnd_struct,self.lambda_upr_bnd_struct)
             # bnds = self.lambda_bnds  + ((lambda_boundaries,))*self.num_lambda_B_params + ((gamma_boundaries,))
             # old_bnds = ((lambda_boundaries,))*self.num_lambda_A_params_prestruct + ((lambda_boundaries_struct,))*self.num_lambda_A_params_instruct + ((lambda_boundaries,))*(self.num_lambda_A_params_poststruct)  + ((lambda_boundaries,))*self.num_lambda_B_params + ((gamma_boundaries,)) 
-            bnds = ((lambda_boundaries,))*self.num_lambda_A_params_prestruct + ((lambda_boundaries_struct,))*self.num_lambda_A_params_instruct + ((lambda_boundaries,))*(self.num_lambda_A_params_poststruct-1) + ((self.lambda_bnds[-1]),) + ((lambda_boundaries,))*self.num_lambda_B_params + ((gamma_boundaries,)) 
-            
+            bnds = ((lambda_boundaries,))*self.num_lambda_A_params_prestruct + ((lambda_boundaries_struct,))*self.num_lambda_A_params_instruct + ((lambda_boundaries,))*(self.num_lambda_A_params_poststruct-1) + ((self.lambda_bnds[-1]),) + ((lambda_boundaries_struct,))*self.num_lambda_B_params + ((gamma_boundaries,)) 
             # print(f'\tbnds are {bnds}')
 
             tm_dummy = Transition_Matrix(D=self.D,spread_1=self.spread_1,spread_2=self.spread_2,midpoint_transitions=self.midpoint_transitions) # initialise transition matrix object
@@ -355,10 +355,11 @@ class BaumWelch:
             lambda_upr_bnd = max(self.lambda_bnds[0])
             lambda_boundaries = (lambda_lwr_bnd,lambda_upr_bnd)
 
+
             lambda_boundaries_struct = (self.lambda_lwr_bnd_struct,self.lambda_upr_bnd_struct)
 
             # old_bnds = ((lambda_boundaries,))*self.num_lambda_A_params_prestruct + ((lambda_boundaries_struct,))*self.num_lambda_A_params_instruct + ((lambda_boundaries,))*self.num_lambda_A_params_poststruct  + ((lambda_boundaries,))*self.num_lambda_B_params + ((gamma_boundaries,)) + rho_boundaries 
-            bnds = ((lambda_boundaries,))*self.num_lambda_A_params_prestruct + ((lambda_boundaries_struct,))*self.num_lambda_A_params_instruct + ((lambda_boundaries,))*(self.num_lambda_A_params_poststruct-1) + ((self.lambda_bnds[-1]),) + ((lambda_boundaries,))*self.num_lambda_B_params + ((gamma_boundaries,))  + rho_boundaries 
+            bnds = ((lambda_boundaries,))*self.num_lambda_A_params_prestruct + ((lambda_boundaries_struct,))*self.num_lambda_A_params_instruct + ((lambda_boundaries,))*(self.num_lambda_A_params_poststruct-1) + ((self.lambda_bnds[-1]),) + ((lambda_boundaries_struct,))*self.num_lambda_B_params + ((gamma_boundaries,))  + rho_boundaries 
 
             # print(f'\tbnds are {bnds}')
 
@@ -432,7 +433,7 @@ class BaumWelch:
         gamma_guess = params[-1]
         # print(f'lambda_A_values={lambda_A_values}; lambda_B_values={lambda_B_values}; gamma={gamma_guess}')
 
-        tm_dummy.write_tm(lambda_A=lambda_A,lambda_B=lambda_B,T_S_index=T_S,T_E_index=T_E,gamma=gamma_guess,check=True,rho=self.rho) # initialise transition matrix object
+        tm_dummy.write_tm(lambda_A=lambda_A,lambda_B=lambda_B,T_S_index=T_S,T_E_index=T_E,gamma=gamma_guess,check=True,rho=self.rho,exponential=not self.recombnoexp) # initialise transition matrix object
         
         diags_Q = np.diag(tm_dummy.Q)
         check_Q = [i <= 0 or i >= 1 for i in diags_Q]
@@ -459,7 +460,7 @@ class BaumWelch:
         lambda_B_guess = np.ones(self.D)*params[1]
         gamma_guess = params[0]
 
-        tm_dummy.write_tm(lambda_A=lambda_A_guess,lambda_B=lambda_B_guess,T_S_index=T_S,T_E_index=T_E,gamma=gamma_guess,check=True,rho=self.rho) # initialise transition matrix object
+        tm_dummy.write_tm(lambda_A=lambda_A_guess,lambda_B=lambda_B_guess,T_S_index=T_S,T_E_index=T_E,gamma=gamma_guess,check=True,rho=self.rho,exponential=not self.recombnoexp) # initialise transition matrix object
         diags_Q = np.diag(tm_dummy.Q)
         check_Q = [i <= 0 or i >= 1 for i in diags_Q]
 
@@ -495,7 +496,7 @@ class BaumWelch:
         if np.min(lambda_A)<0 or np.min(lambda_B)<0 or gamma_guess<0 or gamma_guess>1: # invalid guesses
             return np.inf
 
-        tm_dummy.write_tm(lambda_A=lambda_A,lambda_B=lambda_B,T_S_index=T_S,T_E_index=T_E,gamma=gamma_guess,check=True,rho=rho_guess) # initialise transition matrix object
+        tm_dummy.write_tm(lambda_A=lambda_A,lambda_B=lambda_B,T_S_index=T_S,T_E_index=T_E,gamma=gamma_guess,check=True,rho=rho_guess,exponential=not self.recombnoexp) # initialise transition matrix object
         diags_Q = np.diag(tm_dummy.Q)
         check_Q = [i <= 0 or i >= 1 for i in diags_Q]
         
