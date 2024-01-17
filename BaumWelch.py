@@ -75,11 +75,17 @@ class BaumWelch:
                 seg = [k+q for k in range(0,self.lambda_A_segs[i][0])]
                 sets_params.append(seg)
                 q = seg[-1]+1
-            # TODO finish the above code; in the structured search, if lambda_A_segments is not equal to [[D*1]] then this might cause an error
-            self.num_lambda_A_params_prestruct = self.T_S_index
-            self.num_lambda_A_params_instruct = self.T_E_index - self.T_S_index
-            self.num_lambda_A_params_poststruct = self.D - self.T_E_index
-
+            # an ugly bit of code that allows for searching a lambda_A that is fixed at one value in the structured period
+            if len(self.lambda_A_segs)==3:
+                if self.lambda_A_segs[0][0]==self.T_S_index and self.lambda_A_segs[1][1]==self.T_E_index-self.T_S_index and self.lambda_A_segs[1][0]==1 and self.lambda_A_segs[2][0]==self.D-self.T_E_index:
+                    self.num_lambda_A_params_prestruct = self.T_S_index
+                    self.num_lambda_A_params_instruct = 1
+                    self.num_lambda_A_params_poststruct = self.D - self.T_E_index
+            else:
+                self.num_lambda_A_params_prestruct = self.T_S_index
+                self.num_lambda_A_params_instruct = self.T_E_index - self.T_S_index
+                self.num_lambda_A_params_poststruct = self.D - self.T_E_index
+            
 
             self.lambda_lwr_bnd_struct = lambda_lwr_bnd_struct
             self.lambda_upr_bnd_struct = lambda_upr_bnd_struct
@@ -579,7 +585,7 @@ class BaumWelch:
             print(f'\t\tlambda_A updated: [{",".join([str(i) for i in self.lambda_A_current])}]',flush=True)
             if self.T_S_index is not None:
                 print(f'\t\tlambda_B updated: [{",".join([str(i) for i in self.lambda_B_current])}]',flush=True)
-                print(f'\t\tgamma updated: [{self.gamma_current}]',flush=True)
+                print(f'\t\tgamma updated: {self.gamma_current}',flush=True)
             print(f'\t\trho = {self.rho/self.bin_size}',flush=True)
             print(f'\t\ttheta = {self.theta}',flush=True)
             # self.E = E_new / E_new.sum(axis=1)[:, np.newaxis]

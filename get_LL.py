@@ -131,6 +131,7 @@ parser.add_argument('-midpoint_emissions','--midpoint_emissions',help='Whether t
 parser.add_argument('-final_T_factor','--final_T_factor',help='If given, for the final time boundary take T[-2]*factor. Otherwise write according to sequence',type=str, required=False,default="False")
 parser.add_argument('-recombnoexp','--recombnoexp',help='Model for recombination probability; either exponential (approximation with Taylor series) or standard',default=False,action='store_true')
 parser.add_argument('-HMM_LL','--HMM_LL',help='Get LL from full HMM (as oppposed to Markov sequence)',action='store_true')
+parser.add_argument('-WETM','--WETM',help='If doing the LL of a HMM (i.e. argument -HMM_LL given), write the expected transition matrix to this file',default='',type=str)
 
 args = parser.parse_args()
 zargs = dir(args)
@@ -187,17 +188,45 @@ if HMM_LL:
     mhs_files_R_file[i] = 'null'
     sequences_info = bin_sequence(i,bin_size,mhs_files_M_file,mhs_files_R_file)
     hets = sequences_info[0][0,:]
+    if sequences_info[1].shape[1]!=0:  # masked bases exist    
+        het_sequence = np.zeros(int(sequences_info[3]/bin_size),dtype=int)
+        mask_sequence = np.zeros(int(sequences_info[3]/bin_size),dtype=int)
+        het_sequence[sequences_info[0][0]] = sequences_info[0][1]
+        j_max = sequences_info[2]
+
+        if bin_size <= j_max:
+            print(f'ERROR; bin_size={bin_size}<j_max={j_max} which is not good.Aborting')
+            sys.exit()
+        else:
+            mask_sequence[sequences_info[1][0]] = sequences_info[1][1]*bin_size
+        sequence = het_sequence + mask_sequence
+        E = write_emission_masked_probs(D,bin_size,theta,j_max,T,midpoint_end=midpoint_emissions) 
+    else:
+        
+        sequence = np.zeros(shape=hets[-1]+1,dtype=int)
+        sequence[hets] = 1
+    
+
+    # ii = '/home/tc557/rds/hpc-work/cobraa_snakemakes/simulate_from_HMM_231123/231125_panmixia_vs_structure/L100000000.0_modelpanmixia_true_D100_theta0.001_rho0.0008_gamma0.2_ts26_te65_spread10.1_spread250_sample10_chrom1.mhs'
+
     # mhs = pd.read_csv(i,delimiter='\t',header=None)
     # hets = np.array(mhs[1])
-    sequence = np.zeros(shape=hets[-1]+1,dtype=int)
-    sequence[hets] = 1
+
     B_sequence = np.zeros(shape=hets[-1]+1,dtype=int)
     R_sequence = np.zeros(shape=hets[-1]+1,dtype=int)
     B_vals = np.array([1])
     T_midpoints = np.array([(T[i]+T[i+1])/2 for i in range(0,len(T)-1)])
     forward, scales = forward_matmul_scaled_fcn(sequence=sequence,D=D,init_dist=init_dist,E=E,Q=Q_array,bin_size=bin_size,theta=theta,midpoints=T_midpoints,B_sequence=B_sequence,B_values=B_vals,R_sequence=R_sequence)
     LL = np.sum(np.log(scales))  
-
+    if WETM != '':
+        backward = backward_matmul_scaled_fcn(sequence=sequence,D=D,E=E,Q=Q_array,bin_size=bin_size,theta=theta,midpoints=T_midpoints,scales=scales,B_sequence=B_sequence,B_values=B_vals,R_sequence=R_sequence) 
+        emissions_sequence = E[:,sequence[1:]]*B_vals[B_sequence[1:]]
+        b_emissions = np.multiply(backward[:,1:],emissions_sequence)
+        combined_forwardbackward = np.matmul(forward[:,0:-1],b_emissions.T)
+        Q_current = Q_array[0]
+        A_evidence = np.multiply(combined_forwardbackward,Q_current)
+        np.savetxt(WETM,A_evidence)
+        print(f'\tsaved transition evidence matrix to {WETM}')
 else:
     coal_data = np.loadtxt(i)
     seqlen = coal_data[-1,1]

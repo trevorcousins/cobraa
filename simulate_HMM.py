@@ -102,7 +102,7 @@ def write_coal_data(sequence,changepoints,bin_size,T,filename):
 
 parser = argparse.ArgumentParser(description="Inputs and parameters")
 
-parser.add_argument('-L','--seqlen',help='Length of simulation',required=True,type=int)
+parser.add_argument('-L','--seqlen',help='Length of simulation',required=True,type=float)
 parser.add_argument('-D','--D',help='The number of time windows to use in inference',required=True,type=int)
 parser.add_argument('-spread_1','--spread_1',help='Parameter controlling the time interval boundaries',required=False,type=float,default=0.1)
 parser.add_argument('-spread_2','--spread_2',help='Parameter controlling the time interval boundaries',required=False,type=float,default=50)
@@ -129,6 +129,7 @@ for zarg in zargs:
     print(f'{zarg} is ',end='')
     exec(f'{zarg}=args.{zarg}')
     exec(f'print(args.{zarg})')
+seqlen = int(seqlen)
 
 if lambda_A==None:
     lambda_A = np.ones(D)
