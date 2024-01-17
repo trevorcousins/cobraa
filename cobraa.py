@@ -30,10 +30,10 @@ parser.add_argument('-D','--number_time_windows',help='The number of time window
 parser.add_argument('-spread_1','--D_spread_1',help='Parameter controlling the time interval boundaries',nargs='?',const=0.1,type=float,default=0.1)
 parser.add_argument('-spread_2','--D_spread_2',help='Parameter controlling the time interval boundaries',nargs='?',const=50,type=float,default=50)
 parser.add_argument('-b','--bin_size',help='Adjust recombination rate to bin this many bases together', nargs='?',const=100,type=int,default=100)
-parser.add_argument('-rho','--scaled_recombination_rate',help='The scaled recombination rate; if p is per gen per bp recombination rate, and 2N is the diploid effective size, rho =4Np',nargs='?',const=0.0004,type=float,default=0.0004)
+parser.add_argument('-rho','--scaled_recombination_rate',help='The scaled recombination rate; if p is per gen per bp recombination rate, and 2N is the diploid effective size, rho =4Np',nargs='?',const=0.0004,type=float)
 parser.add_argument('-theta','--scaled_mutation_rate',help='The scaled mutation rate; if mu is per gen per bp mutation rate, and 2N is the diploid effective size, theta =4Nmu',required=False,type=str,default=None)
 parser.add_argument('-rho_fixed','--rho_fixed',help='Boolean for optimising rho as a parameter',default=False,action='store_true')
-parser.add_argument('-mu_over_rho_ratio','--mu_over_rho_ratio',help='Starting ratio between theta and rho',nargs='?',const=False,type=float,default=None)
+parser.add_argument('-mu_over_rho_ratio','--mu_over_rho_ratio',help='Starting ratio between theta and rho',nargs='?',const=False,type=float,default=1.5)
 parser.add_argument('-lambda_lwr','--lambda_lwr_bnd',help='Lower bound for lambda when searching for psc parameters',nargs='?',const=False,type=float,default=0.1)
 parser.add_argument('-lambda_upr','--lambda_upr_bnd',help='Upper bound for lambda when searching for psc parameters',nargs='?',const=False,type=float,default=50)
 
@@ -60,6 +60,7 @@ parser.add_argument('-optimisation_method','--optimisation_method',help='Whether
 parser.add_argument('-save_iteration_files','--save_iteration_files',help='Flag for whether to save output for every iteration',default=False,action='store_true')
 parser.add_argument('-decode','--decode_flag',help='Flag for whether to run posterior decoding (as opposed to demographic inference)',default=False,action='store_true')
 parser.add_argument('-decode_downsample','--decode_downsample',help='If decode is true, downsammple the posterior positions by this factor',type=int,default=10,required=False)
+parser.add_argument('-pathmodel','--pathmodel',help='Use the cobraa_path model (more hidden states, which explicit model the ancestral lineage path. See the paper for more details)',default=False,action='store_true')
 parser.add_argument('-o_R','--output_R_path',help='If given with "decode" flag, save marginal recombination probabilities to this path',default=None,type=str,required=False)
 parser.add_argument('-c','--cores',help='Number of cores; if not given, will try the number of mhsfiles',default=None,type=int,required=False)
 
@@ -320,15 +321,11 @@ else:
         print('\t\ttheta input not valid. Aborting',flush=True)
         sys.exit()
 
-if args.mu_over_rho_ratio==None:
+if args.scaled_recombination_rate!=None:
     rho = args.scaled_recombination_rate
 else:
-    try:
-        rho = theta / args.mu_over_rho_ratio
-    except:
-        # print(f'\t "rho = theta / args.mu_over_rho_ratio" failed. Setting rho=theta*0.8')
-        rho = theta*0.8
-
+    rho = theta / args.mu_over_rho_ratio
+    
 
 print(f'\tThe scaled mutation rate (theta=4*N*mu) is {theta}',flush=True)
 print(f'\tThe scaled recombination rate (rho=4*N*r) is {rho}',flush=True)
@@ -397,18 +394,34 @@ elif STRUCTURE:
     T_S_fg = T_S_input
     T_E_fg = T_E_input
 
-if inference_flag==True:
-    print(f'\nStarting EM algorithm.',flush=True)
-    BW = BaumWelch(sequences_info=sequences_info,D=D,E=E,E_masked=E_masked,lambda_A_values=lambda_A_values,lambda_B_values=lambda_B_values,gamma_fg=gamma_fg,lambda_A_segs = lambda_A_segs,lambda_B_segs = lambda_B_segs,rho=rho,theta=theta,estimate_rho=estimate_rho,final_T_factor=final_T_factor,T_array=T,bin_size=bin_size,T_S=T_S_input,T_E=T_E_input,j_max=j_max,spread_1=spread_1,spread_2=spread_2,lambda_lwr_bnd=lambda_lwr_bnd,lambda_upr_bnd=lambda_upr_bnd,gamma_lwr_bnd=gamma_lwr_bnd,gamma_upr_bnd=gamma_upr_bnd,output_path=output_path,cores=cores,xtol=xtol,ftol=ftol,midpoint_transitions=midpoint_transitions,midpoint_end=midpoint_emissions,optimisation_method=optimisation_method,save_iteration_files=save_iteration_files,lambda_lwr_bnd_struct = lambda_lwr_bnd_struct, lambda_upr_bnd_struct = lambda_upr_bnd_struct,recombnoexp=recombnoexp)
-    
-    BW.BaumWelch(BW_iterations=BW_its,BW_thresh=BW_thresh)
-    print(f'\nFinished EM algorithm.',flush=True)
-    print(f'\nGetting log_likelihood.',flush=True)
-    get_loglikelihood(BW,output_path=output_path)
-elif decode_flag==True:
-    BW = BaumWelch(sequences_info=sequences_info,D=D,E=E,E_masked=E_masked,lambda_A_values=lambda_A_values,lambda_B_values=lambda_B_values,gamma_fg=gamma_fg,lambda_A_segs = lambda_A_segs,lambda_B_segs = lambda_B_segs,rho=rho,theta=theta,estimate_rho=estimate_rho,final_T_factor=final_T_factor,T_array=T,bin_size=bin_size,T_S=T_S_input,T_E=T_E_input,j_max=j_max,spread_1=spread_1,spread_2=spread_2,lambda_lwr_bnd=lambda_lwr_bnd,lambda_upr_bnd=lambda_upr_bnd,gamma_lwr_bnd=gamma_lwr_bnd,gamma_upr_bnd=gamma_upr_bnd,output_path=output_path,cores=cores,xtol=xtol,ftol=ftol,midpoint_transitions=midpoint_transitions,midpoint_end=midpoint_emissions,optimisation_method=optimisation_method,save_iteration_files=save_iteration_files,lambda_lwr_bnd_struct = lambda_lwr_bnd_struct, lambda_upr_bnd_struct = lambda_upr_bnd_struct,recombnoexp=recombnoexp)
-    get_posterior(BW,downsample,output_path,output_R_path)  
-else:
-    print('\tError!',flush=True)
+if not args.pathmodel: # do not use pathmmodel 
+    if inference_flag==True:
+        print(f'\nStarting EM algorithm.',flush=True)
+        BW = BaumWelch(sequences_info=sequences_info,D=D,E=E,E_masked=E_masked,lambda_A_values=lambda_A_values,lambda_B_values=lambda_B_values,gamma_fg=gamma_fg,lambda_A_segs = lambda_A_segs,lambda_B_segs = lambda_B_segs,rho=rho,theta=theta,estimate_rho=estimate_rho,final_T_factor=final_T_factor,T_array=T,bin_size=bin_size,T_S=T_S_input,T_E=T_E_input,j_max=j_max,spread_1=spread_1,spread_2=spread_2,lambda_lwr_bnd=lambda_lwr_bnd,lambda_upr_bnd=lambda_upr_bnd,gamma_lwr_bnd=gamma_lwr_bnd,gamma_upr_bnd=gamma_upr_bnd,output_path=output_path,cores=cores,xtol=xtol,ftol=ftol,midpoint_transitions=midpoint_transitions,midpoint_end=midpoint_emissions,optimisation_method=optimisation_method,save_iteration_files=save_iteration_files,lambda_lwr_bnd_struct = lambda_lwr_bnd_struct, lambda_upr_bnd_struct = lambda_upr_bnd_struct,recombnoexp=recombnoexp)
+        BW.BaumWelch(BW_iterations=BW_its,BW_thresh=BW_thresh)
+        print(f'\nFinished EM algorithm.',flush=True)
+        print(f'\nGetting log_likelihood.',flush=True)
+        get_loglikelihood(BW,output_path=output_path)
+    elif decode_flag==True:
+        BW = BaumWelch(sequences_info=sequences_info,D=D,E=E,E_masked=E_masked,lambda_A_values=lambda_A_values,lambda_B_values=lambda_B_values,gamma_fg=gamma_fg,lambda_A_segs = lambda_A_segs,lambda_B_segs = lambda_B_segs,rho=rho,theta=theta,estimate_rho=estimate_rho,final_T_factor=final_T_factor,T_array=T,bin_size=bin_size,T_S=T_S_input,T_E=T_E_input,j_max=j_max,spread_1=spread_1,spread_2=spread_2,lambda_lwr_bnd=lambda_lwr_bnd,lambda_upr_bnd=lambda_upr_bnd,gamma_lwr_bnd=gamma_lwr_bnd,gamma_upr_bnd=gamma_upr_bnd,output_path=output_path,cores=cores,xtol=xtol,ftol=ftol,midpoint_transitions=midpoint_transitions,midpoint_end=midpoint_emissions,optimisation_method=optimisation_method,save_iteration_files=save_iteration_files,lambda_lwr_bnd_struct = lambda_lwr_bnd_struct, lambda_upr_bnd_struct = lambda_upr_bnd_struct,recombnoexp=recombnoexp)
+        get_posterior(BW,downsample,output_path,output_R_path)  
+    else:
+        print('\tError!',flush=True)
+else: # do use path model
+    from BaumWelch_path import *
+    if inference_flag==True:
+
+        print(f'\nStarting EM algorithm.',flush=True)
+        BW = BaumWelch(sequences_info=sequences_info,D=D,E=E,E_masked=E_masked,lambda_A_values=lambda_A_values,lambda_B_values=lambda_B_values,gamma_fg=gamma_fg,lambda_A_segs = lambda_A_segs,lambda_B_segs = lambda_B_segs,rho=rho,theta=theta,estimate_rho=estimate_rho,final_T_factor=final_T_factor,T_array=T,bin_size=bin_size,T_S=T_S_input,T_E=T_E_input,j_max=j_max,spread_1=spread_1,spread_2=spread_2,lambda_lwr_bnd=lambda_lwr_bnd,lambda_upr_bnd=lambda_upr_bnd,gamma_lwr_bnd=gamma_lwr_bnd,gamma_upr_bnd=gamma_upr_bnd,output_path=output_path,cores=cores,xtol=xtol,ftol=ftol,midpoint_transitions=midpoint_transitions,midpoint_end=midpoint_emissions,optimisation_method=optimisation_method,save_iteration_files=save_iteration_files,lambda_lwr_bnd_struct = lambda_lwr_bnd_struct, lambda_upr_bnd_struct = lambda_upr_bnd_struct,recombnoexp=recombnoexp)
+        BW.BaumWelch(BW_iterations=BW_its,BW_thresh=BW_thresh)
+        print(f'\nFinished EM algorithm.',flush=True)
+        print(f'\nGetting log_likelihood.',flush=True)
+        get_loglikelihood(BW,output_path=output_path)
+    elif decode_flag==True:
+        BW = BaumWelch(sequences_info=sequences_info,D=D,E=E,E_masked=E_masked,lambda_A_values=lambda_A_values,lambda_B_values=lambda_B_values,gamma_fg=gamma_fg,lambda_A_segs = lambda_A_segs,lambda_B_segs = lambda_B_segs,rho=rho,theta=theta,estimate_rho=estimate_rho,final_T_factor=final_T_factor,T_array=T,bin_size=bin_size,T_S=T_S_input,T_E=T_E_input,j_max=j_max,spread_1=spread_1,spread_2=spread_2,lambda_lwr_bnd=lambda_lwr_bnd,lambda_upr_bnd=lambda_upr_bnd,gamma_lwr_bnd=gamma_lwr_bnd,gamma_upr_bnd=gamma_upr_bnd,output_path=output_path,cores=cores,xtol=xtol,ftol=ftol,midpoint_transitions=midpoint_transitions,midpoint_end=midpoint_emissions,optimisation_method=optimisation_method,save_iteration_files=save_iteration_files,lambda_lwr_bnd_struct = lambda_lwr_bnd_struct, lambda_upr_bnd_struct = lambda_upr_bnd_struct,recombnoexp=recombnoexp)
+        get_posterior(BW,downsample,output_path,output_R_path)  
+    else:
+        print('\tError!',flush=True)
+
 
 # deleteme
