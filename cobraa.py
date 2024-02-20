@@ -408,6 +408,13 @@ if not args.pathmodel: # do not use pathmmodel
     else:
         print('\tError!',flush=True)
 else: # do use path model
+# emission probabilities 
+    if T_S_input==None or T_E_input==None:
+        print(f'ERROR: Searching panmixia (T_1==None and T_2==None) is not supported with the path model. Aborting ')
+        sys.exit()
+    D_flat = T_S_input  + (T_E_input-T_S_input)*2 + (D - T_E_input)*3
+    E = write_emission_path_probs(D_flat,D,bin_size,theta,j_max,T,T_S_input,T_E_input) # path emissions
+    E_masked = write_emission_path_masked_probs(D_flat,D,bin_size,theta,j_max,T,T_S_input,T_E_input) # path emissions
     from BaumWelch_path import *
     if inference_flag==True:
 
@@ -416,10 +423,10 @@ else: # do use path model
         BW.BaumWelch(BW_iterations=BW_its,BW_thresh=BW_thresh)
         print(f'\nFinished EM algorithm.',flush=True)
         print(f'\nGetting log_likelihood.',flush=True)
-        get_loglikelihood(BW,output_path=output_path)
+        get_loglikelihood_path(BW,output_path=output_path)
     elif decode_flag==True:
         BW = BaumWelch(sequences_info=sequences_info,D=D,E=E,E_masked=E_masked,lambda_A_values=lambda_A_values,lambda_B_values=lambda_B_values,gamma_fg=gamma_fg,lambda_A_segs = lambda_A_segs,lambda_B_segs = lambda_B_segs,rho=rho,theta=theta,estimate_rho=estimate_rho,final_T_factor=final_T_factor,T_array=T,bin_size=bin_size,T_S=T_S_input,T_E=T_E_input,j_max=j_max,spread_1=spread_1,spread_2=spread_2,lambda_lwr_bnd=lambda_lwr_bnd,lambda_upr_bnd=lambda_upr_bnd,gamma_lwr_bnd=gamma_lwr_bnd,gamma_upr_bnd=gamma_upr_bnd,output_path=output_path,cores=cores,xtol=xtol,ftol=ftol,midpoint_transitions=midpoint_transitions,midpoint_end=midpoint_emissions,optimisation_method=optimisation_method,save_iteration_files=save_iteration_files,lambda_lwr_bnd_struct = lambda_lwr_bnd_struct, lambda_upr_bnd_struct = lambda_upr_bnd_struct,recombnoexp=recombnoexp)
-        get_posterior(BW,downsample,output_path,output_R_path)  
+        get_posterior_path(BW,downsample,output_path,output_R_path)  
     else:
         print('\tError!',flush=True)
 

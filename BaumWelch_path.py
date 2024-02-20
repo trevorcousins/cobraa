@@ -46,6 +46,7 @@ class BaumWelch:
         self.T_S_index = T_S # fixed guess for T_S
         self.T_E_index = T_E # fixed guess for 
         self.LLs = []
+        self.D_flat = self.T_S_index  + (self.T_E_index-self.T_S_index)*2 + (self.D - self.T_E_index)*3
         self.number_of_completed_iterations = 0
         self.midpoint_transitions = midpoint_transitions
         self.optimisation_method = optimisation_method
@@ -99,9 +100,8 @@ class BaumWelch:
             
             tm_first_guess = Transition_Matrix_path(D=self.D,spread_1=self.spread_1,spread_2=self.spread_2,midpoint_transitions=self.midpoint_transitions) # initialise transition matrix object
             # first guess is structured that is given by user
-            self.Q_first_guess = tm_first_guess.write_tm(lambda_A=self.lambda_A_current,lambda_B=self.lambda_B_current,T_S_index=self.T_S_index,T_E_index=self.T_E_index,gamma=self.gamma_current,check=True,rho=self.rho,exponential=not self.recombnoexp) # initialise transition matrix object
+            self.Q_first_guess = tm_first_guess.write_tm(lambda_A=self.lambda_A_current,lambda_B=self.lambda_B_current,T_S_index=self.T_S_index,T_E_index=self.T_E_index,gamma=self.gamma_current,check=True,rho=self.rho,exponential=not self.recombnoexp, write_regular_Q=False,write_flat_Q=True) # initialise transition matrix object
             # The below line sets the first guess as panmictic with lambda_A = one everywhere. This is implemented in BaumWelch211128.py
-            
             self.Q_current = self.Q_first_guess # set the current Q as the first guess, initially
             self.init_dist = get_stationary_distribution_theory(self.Q_current)  
             # self.init_dist = np.ones(D)/D
@@ -117,7 +117,7 @@ class BaumWelch:
             # print('Doing panmictic inference.')
 
             tm_first_guess = Transition_Matrix_path(D=self.D,spread_1=self.spread_1,spread_2=self.spread_2,midpoint_transitions=self.midpoint_transitions) # initialise transition matrix object
-            self.Q_first_guess = tm_first_guess.write_tm(lambda_A=self.lambda_A_current,lambda_B=None,T_S_index=None,T_E_index=None,gamma=None,check=True,rho=self.rho,exponential=not self.recombnoexp) # initialise transition matrix object
+            self.Q_first_guess = tm_first_guess.write_tm(lambda_A=self.lambda_A_current,lambda_B=None,T_S_index=None,T_E_index=None,gamma=None,check=True,rho=self.rho,exponential=not self.recombnoexp,write_regular_Q=False,write_flat_Q=True) # initialise transition matrix object
             self.Q_current = self.Q_first_guess # set the current Q as the first guess
             self.init_dist = get_stationary_distribution_theory(self.Q_current)
             self.lambda_B_current = None
@@ -219,11 +219,11 @@ class BaumWelch:
         # minimise with panmixia
         # no estimation of rho
         lambda_A = write_lambda_optimise(self.lambda_A_segs,params,self.lambda_A_current)
-        tm_dummy.write_tm(lambda_A=lambda_A,lambda_B=None,T_S_index=None,T_E_index=None,gamma=None,check=True,rho=self.rho,exponential=not self.recombnoexp) # initialise transition matrix object        
-        if np.min(tm_dummy.Q)<0 or np.max(tm_dummy.Q)>1: #  or check_E>0: # this rho value returned an invalid result in matrix 
+        tm_dummy.write_tm(lambda_A=lambda_A,lambda_B=None,T_S_index=None,T_E_index=None,gamma=None,check=True,rho=self.rho,exponential=not self.recombnoexp,write_regular_Q=False,write_flat_Q=True) # initialise transition matrix object        
+        if np.min(tm_dummy.Q_flat)<0 or np.max(tm_dummy.Q_flat)>1: #  or check_E>0: # this rho value returned an invalid result in matrix 
             F_obj = -np.inf
         else:
-            log_Q = np.log(tm_dummy.Q)
+            log_Q = np.log(tm_dummy.Q_flat)
             F_trans = np.sum(np.multiply(log_Q,A_evidence)) 
             F_obj = F_trans
         return F_obj*(-1)
@@ -234,10 +234,10 @@ class BaumWelch:
         # minimise with panmixia, with varying mut rate
         # no estimation of rho
         lambda_A = write_lambda_optimise(self.lambda_A_segs,params,self.lambda_A_current)
-        tm_dummy.write_tm(lambda_A=lambda_A,lambda_B=None,T_S_index=None,T_E_index=None,gamma=None,check=True,rho=self.rho,exponential=not self.recombnoexp) # initialise transition matrix object        
-        zQ = write_Q_array_withR(tm_dummy.Q,R_vals,rho,self.D,self.spread_1,self.spread_2,lambda_A,self.midpoint_transitions)       
-        zQ = tm_dummy.write_tm(lambda_A=lambda_A,lambda_B=None,T_S_index=None,T_E_index=None,gamma=None,check=True,rho=self.rho,exponential=not self.recombnoexp) # initialise transition matrix object        
-        if np.min(tm_dummy.Q)<0 or np.max(tm_dummy.Q)>1: #  or check_E>0: # this rho value returned an invalid result in matrix 
+        tm_dummy.write_tm(lambda_A=lambda_A,lambda_B=None,T_S_index=None,T_E_index=None,gamma=None,check=True,rho=self.rho,exponential=not self.recombnoexp,write_regular_Q=False,write_flat_Q=True) # initialise transition matrix object        
+        zQ = write_Q_array_withR(tm_dummy.Q_flat,R_vals,rho,self.D,self.spread_1,self.spread_2,lambda_A,self.midpoint_transitions)       
+        zQ = tm_dummy.write_tm(lambda_A=lambda_A,lambda_B=None,T_S_index=None,T_E_index=None,gamma=None,check=True,rho=self.rho,exponential=not self.recombnoexp,write_regular_Q=False,write_flat_Q=True) # initialise transition matrix object        
+        if np.min(tm_dummy.Q_flat)<0 or np.max(tm_dummy.Q_flat)>1: #  or check_E>0: # this rho value returned an invalid result in matrix 
             F_obj = -np.inf
         else:
             log_Q = np.log(zQ)
@@ -252,11 +252,11 @@ class BaumWelch:
         # estimate rho too
         lambda_A = write_lambda_optimise(self.lambda_A_segs,params[0:-1],self.lambda_A_current)
         rho = params[-1]
-        tm_dummy.write_tm(lambda_A=lambda_A,lambda_B=None,T_S_index=None,T_E_index=None,gamma=None,check=True,rho=rho,exponential=not self.recombnoexp) # initialise transition matrix object
-        if np.min(tm_dummy.Q)<0 or np.max(tm_dummy.Q)>1: #  or check_E>0: # this rho value returned an invalid result in matrix 
+        tm_dummy.write_tm(lambda_A=lambda_A,lambda_B=None,T_S_index=None,T_E_index=None,gamma=None,check=True,rho=rho,exponential=not self.recombnoexp,write_regular_Q=False,write_flat_Q=True) # initialise transition matrix object
+        if np.min(tm_dummy.Q_flat)<0 or np.max(tm_dummy.Q_flat)>1: #  or check_E>0: # this rho value returned an invalid result in matrix 
             F_obj = -np.inf
         else:
-            log_Q = np.log(tm_dummy.Q)
+            log_Q = np.log(tm_dummy.Q_flat)
             F_trans = np.sum(np.multiply(log_Q,A_evidence)) 
             F_obj = F_trans 
         return F_obj*(-1)
@@ -309,7 +309,7 @@ class BaumWelch:
             # write new panmictic matrix
             self.lambda_A_values = optimised_params
             self.lambda_A_current = write_lambda_optimise(self.lambda_A_segs,self.lambda_A_values,self.lambda_A_current)
-            self.Q_current = tm_current.write_tm(lambda_A=self.lambda_A_current,lambda_B=None,T_S_index=None,T_E_index=None,gamma=None,check=True,rho=self.rho,exponential=not self.recombnoexp) # initialise transition matrix object
+            self.Q_current = tm_current.write_tm(lambda_A=self.lambda_A_current,lambda_B=None,T_S_index=None,T_E_index=None,gamma=None,check=True,rho=self.rho,exponential=not self.recombnoexp,write_regular_Q=False,write_flat_Q=True) # initialise transition matrix object
         
         else: # structure
             # write new structured matrix
@@ -320,7 +320,7 @@ class BaumWelch:
             self.gamma_current = optimised_params[-1] 
             # lambda_A_current = self.params_current[0:self.D]
             # lambda_B_current = np.ones(self.D)*self.params_current[-2]
-            self.Q_current = tm_current.write_tm(lambda_A=self.lambda_A_current,lambda_B=self.lambda_B_current,T_S_index=self.T_S_index,T_E_index=self.T_E_index,gamma=self.gamma_current,check=True,rho=self.rho,exponential=not self.recombnoexp) # initialise transition matrix object
+            self.Q_current = tm_current.write_tm(lambda_A=self.lambda_A_current,lambda_B=self.lambda_B_current,T_S_index=self.T_S_index,T_E_index=self.T_E_index,gamma=self.gamma_current,check=True,rho=self.rho,exponential=not self.recombnoexp,write_regular_Q=False,write_flat_Q=True) # initialise transition matrix object
         del tm_current
         return None
 
@@ -424,15 +424,17 @@ class BaumWelch:
             # write new panmictic matrix
         self.lambda_A_values = optimised_params
         self.lambda_A_current = write_lambda_optimise(self.lambda_A_segs,self.lambda_A_values,self.lambda_A_current)
-        self.Q_current = tm_current.write_tm(lambda_A=self.lambda_A_current,lambda_B=None,T_S_index=None,T_E_index=None,gamma=None,check=True,rho=self.rho,exponential=not self.recombnoexp) # initialise transition matrix object
+        self.Q_current = tm_current.write_tm(lambda_A=self.lambda_A_current,lambda_B=None,T_S_index=None,T_E_index=None,gamma=None,check=True,rho=self.rho,exponential=not self.recombnoexp,write_regular_Q=False,write_flat_Q=True) # initialise transition matrix object
     
         del tm_current
         return None
 
-    def neg_objective_function_structure(self,params,A_evidence,tm_dummy,T_S,T_E):
+    def neg_objective_function_structure(self,params,A_evidence,tm_dummy,T_S,T_E,zero_log=1e-32):
         # print(f'params are \n{params}')
         # minimise structured demography params
         # make sure params is like this: [lambda_A_0,...,lambda_A_D,gamma]
+        # zero_log doesn't matter because A_evidence will be zero there anyway
+
         lambda_A_values = params[0:self.num_lambda_A_params]
         lambda_B_values = params[self.num_lambda_A_params:self.num_lambda_A_params+self.num_lambda_B_params]
         lambda_A = write_lambda_optimise(self.lambda_A_segs,lambda_A_values,self.lambda_A_current)
@@ -443,39 +445,41 @@ class BaumWelch:
         gamma_guess = params[-1]
         # print(f'lambda_A_values={lambda_A_values}; lambda_B_values={lambda_B_values}; gamma={gamma_guess}')
 
-        tm_dummy.write_tm(lambda_A=lambda_A,lambda_B=lambda_B,T_S_index=T_S,T_E_index=T_E,gamma=gamma_guess,check=True,rho=self.rho,exponential=not self.recombnoexp) # initialise transition matrix object
+        tm_dummy.write_tm(lambda_A=lambda_A,lambda_B=lambda_B,T_S_index=T_S,T_E_index=T_E,gamma=gamma_guess,check=True,rho=self.rho,exponential=not self.recombnoexp,write_regular_Q=False,write_flat_Q=True) # initialise transition matrix object
         
-        diags_Q = np.diag(tm_dummy.Q)
+        diags_Q = np.diag(tm_dummy.Q_flat)
         check_Q = [i <= 0 or i >= 1 for i in diags_Q]
-        if np.min(tm_dummy.Q<0):
-            print(f'np.min(tm_dummy.Q<0). This should not happen. This happened in neg_objective_function_structure')
+        if np.min(tm_dummy.Q_flat<0):
+            print(f'np.min(tm_dummy.Q_flat<0). This should not happen. This happened in neg_objective_function_structure')
             print(f'\tparams are lambda_A={lambda_A_guess}; lambda_B_guess={lambda_B_guess}; gamma={gamma_guess}')
 
         if np.sum(check_Q)>0 or gamma_guess>=1 or gamma_guess<0: # this rho value returned an invalid result in matrix 
             F_obj = -np.inf
             # print(f'\t\tin function rho_estimation...This value of rho ({rho_search}) is invalid.')
         else:
-            log_Q = np.log(tm_dummy.Q)
+            tm_dummy.Q_flat[np.where(tm_dummy.Q_flat==0)] = zero_log
+            log_Q = np.log(tm_dummy.Q_flat)
             F_trans = np.sum(np.multiply(log_Q,A_evidence))   
             F_obj = F_trans 
         # print(f'F_obj is {F_obj}')        
         # print(f'F_obj is {F_obj}')
         return F_obj*(-1)
 
-    def neg_objective_function_structure_gammafirst(self,params,A_evidence,tm_dummy,T_S,T_E):
+    def neg_objective_function_structure_gammafirst(self,params,A_evidence,tm_dummy,T_S,T_E,zero_log=1e-32):
         # print(f'params are \n{params}')
         # minimise structured demography params
         # make sure params is like this: gamma, lambda_B, [lambda_A_0,...,lambda_A_D]
+        # zero_log doesn't matter because A_evidence will be zero there anyway
         lambda_A_guess = params[2:(2+self.D)]
         lambda_B_guess = np.ones(self.D)*params[1]
         gamma_guess = params[0]
 
-        tm_dummy.write_tm(lambda_A=lambda_A_guess,lambda_B=lambda_B_guess,T_S_index=T_S,T_E_index=T_E,gamma=gamma_guess,check=True,rho=self.rho,exponential=not self.recombnoexp) # initialise transition matrix object
-        diags_Q = np.diag(tm_dummy.Q)
+        tm_dummy.write_tm(lambda_A=lambda_A_guess,lambda_B=lambda_B_guess,T_S_index=T_S,T_E_index=T_E,gamma=gamma_guess,check=True,rho=self.rho,exponential=not self.recombnoexp,write_regular_Q=False,write_flat_Q=True) # initialise transition matrix object
+        diags_Q = np.diag(tm_dummy.Q_flat)
         check_Q = [i <= 0 or i >= 1 for i in diags_Q]
 
-        if np.min(tm_dummy.Q<0):
-            print(f'np.min(tm_dummy.Q<0). This should not happen. This happened in neg_objective_function_structure_gammafirst')
+        if np.min(tm_dummy.Q_flat<0):
+            print(f'np.min(tm_dummy.Q_flat<0). This should not happen. This happened in neg_objective_function_structure_gammafirst')
             print(f'\tparams are lambda_A={lambda_A_guess}; lambda_B_guess={lambda_B_guess}; gamma={gamma_guess}')
 
 
@@ -483,16 +487,18 @@ class BaumWelch:
             F_obj = -np.inf
             # print(f'\t\tin function rho_estimation...This value of rho ({rho_search}) is invalid.')
         else:
-            log_Q = np.log(tm_dummy.Q)
+            tm_dummy.Q_flat[np.where(tm_dummy.Q_flat==0)] = zero_log
+            log_Q = np.log(tm_dummy.Q_flat)
             F_trans = np.sum(np.multiply(log_Q,A_evidence))   
             F_obj = F_trans 
         # print(f'F_obj is {F_obj}')
         return F_obj*(-1)
 
-    def neg_objective_function_structure_rho(self,params,A_evidence,tm_dummy,T_S,T_E):
+    def neg_objective_function_structure_rho(self,params,A_evidence,tm_dummy,T_S,T_E,zero_log=1e-32):
         # print(f'params are \n{params}')
         # minimise structured demography params, and rho and theta too
         # make sure params is like this: [lambda_A_0,...,lambda_A_D,gamma,rho,theta]
+        # zero_log doesn't matter because A_evidence will be zero there anyway
         lambda_A_values = params[0:self.num_lambda_A_params]
         lambda_B_values = params[self.num_lambda_A_params:self.num_lambda_A_params+self.num_lambda_B_params]
         lambda_A = write_lambda_optimise(self.lambda_A_segs,lambda_A_values,self.lambda_A_current)
@@ -506,12 +512,12 @@ class BaumWelch:
         if np.min(lambda_A)<0 or np.min(lambda_B)<0 or gamma_guess<0 or gamma_guess>1: # invalid guesses
             return np.inf
 
-        tm_dummy.write_tm(lambda_A=lambda_A,lambda_B=lambda_B,T_S_index=T_S,T_E_index=T_E,gamma=gamma_guess,check=True,rho=rho_guess,exponential=not self.recombnoexp) # initialise transition matrix object
-        diags_Q = np.diag(tm_dummy.Q)
+        tm_dummy.write_tm(lambda_A=lambda_A,lambda_B=lambda_B,T_S_index=T_S,T_E_index=T_E,gamma=gamma_guess,check=True,rho=rho_guess,exponential=not self.recombnoexp,write_regular_Q=False,write_flat_Q=True) # initialise transition matrix object
+        diags_Q = np.diag(tm_dummy.Q_flat)
         check_Q = [i <= 0 or i >= 1 for i in diags_Q]
         
-        if np.min(tm_dummy.Q<0):
-            print(f'np.min(tm_dummy.Q<0). This should not happen. This happened in neg_objective_function_structure_rho',flush=True)
+        if np.min(tm_dummy.Q_flat<0):
+            print(f'np.min(tm_dummy.Q_flat<0). This should not happen. This happened in neg_objective_function_structure_rho',flush=True)
             print(f'\tparams are lambda_A={lambda_A}; lambda_B_guess={lambda_B}; gamma={gamma_guess}',flush=True)
             return np.inf
 
@@ -520,7 +526,8 @@ class BaumWelch:
             F_obj = -np.inf
             # print(f'\t\tin function rho_estimation...This value of rho ({rho_search}) is invalid.')
         else:
-            log_Q = np.log(tm_dummy.Q)
+            tm_dummy.Q_flat[np.where(tm_dummy.Q_flat==0)] = zero_log
+            log_Q = np.log(tm_dummy.Q_flat)
             F_trans = np.sum(np.multiply(log_Q,A_evidence))   
             F_obj = F_trans 
         # print(f'F_obj is {F_obj}')
@@ -550,17 +557,16 @@ class BaumWelch:
                 Rmap=True
             
             tm_dummy = Transition_Matrix_path(D=self.D,spread_1=self.spread_1,spread_2=self.spread_2,midpoint_transitions=self.midpoint_transitions) # initialise transition matrix object
-            tm_dummy.write_tm(lambda_A=self.lambda_A_current,lambda_B=self.lambda_B_current,T_S_index=self.T_S_index,T_E_index=self.T_E_index,gamma=self.gamma_current,check=True,rho=self.rho,exponential=not self.recombnoexp) # write transition matrix for different rho values
-            # zQ_current_array = write_Q_array_withR_old(tm_dummy.Q,R_vals,R_vals[np.argmin(np.abs(R_vals-1))],self.D)
-            Q_current_array = write_Q_array_withR(tm_dummy.Q,R_vals,self.rho,self.D,self.spread_1,self.spread_2,self.lambda_A_current,self.midpoint_transitions) 
-            expectation_steps = Parallel(n_jobs=self.cores, backend='loky')(delayed(calculate_transition_evidence)(self.sequence_fcn,file,self.D,self.init_dist,self.E_masked,Q_current_array,self.theta,self.rho,self.bin_size,self.j_max,self.midpoints,self.spread_1,self.spread_2,self.midpoint_transitions) for file in range(self.num_files))
+            tm_dummy.write_tm(lambda_A=self.lambda_A_current,lambda_B=self.lambda_B_current,T_S_index=self.T_S_index,T_E_index=self.T_E_index,gamma=self.gamma_current,check=True,rho=self.rho,exponential=not self.recombnoexp,write_regular_Q=False,write_flat_Q=True) # write transition matrix for different rho values
+            Q_current_array = np.array([tm_dummy.Q_flat])
+            expectation_steps = Parallel(n_jobs=self.cores, backend='loky')(delayed(calculate_transition_evidence_path)(self.sequence_fcn,file,self.D_flat,self.init_dist,self.E_masked,Q_current_array,self.theta,self.rho,self.bin_size,self.j_max,self.midpoints,self.spread_1,self.spread_2,self.midpoint_transitions) for file in range(self.num_files))
             # expectation_steps = calculate_transition_evidence(self.sequence_fcn,0,self.D,self.init_dist,self.E_masked,self.Q_current,self.ram_limit,self.theta,self.bin_size,self.j_max,self.midpoints) 
 
             # expectation_steps = Parallel(n_jobs=self.cores, backend='loky')(delayed(self.calculate_transition_evidence_copy)(file) for file in range(self.num_files))
             end = time.time()
             time_taken = end - start
             print(f'\t\t\ttime taken to calculate expectation: {time_taken}')
-            A_evidence = np.zeros(shape=(self.D,self.D))
+            A_evidence = np.zeros(shape=(self.D_flat,self.D_flat))
             new_ll = 0
             for i in range(self.num_files):
                 A_evidence += expectation_steps[i][0]
@@ -700,3 +706,69 @@ def initialisation_lambda(values,segments,D):
     num_lambda_params = len(values)
     return segments, values, num_lambda_params
 
+def get_loglikelihood_path(BW,output_path):
+
+    sequence, B_sequence, B_vals,R_sequence, R_vals = BW.sequence_fcn(0)
+    tm_dummy = Transition_Matrix_path(D=BW.D,spread_1=BW.spread_1,spread_2=BW.spread_2,midpoint_transitions=BW.midpoint_transitions) # initialise transition matrix object
+    tm_dummy.write_tm(lambda_A=BW.lambda_A_current,lambda_B=BW.lambda_B_current,T_S_index=BW.T_S_index,T_E_index=BW.T_E_index,gamma=BW.gamma_current,check=True,rho=BW.rho,exponential=not BW.recombnoexp,write_regular_Q=False,write_flat_Q=True) # write transition matrix for different rho values
+    # Q_current_array = write_Q_array_withR(tm_dummy.Q,R_vals,R_vals[np.argmin(np.abs(R_vals-1))],BW.D)    
+    Q_current_array = np.array([tm_dummy.Q_flat])
+    expectation_steps = Parallel(n_jobs=BW.cores, backend='loky')(delayed(calculate_transition_evidence_path)(BW.sequence_fcn,file,BW.D_flat,BW.init_dist,BW.E_masked,Q_current_array,BW.theta,BW.rho,BW.bin_size,BW.j_max,BW.midpoints,BW.spread_1,BW.spread_2,BW.midpoint_transitions) for file in range(BW.num_files)) 
+    
+    new_ll = 0
+    for i in range(BW.num_files):
+        new_ll += expectation_steps[i][1]
+
+    final_lambda_A = BW.lambda_A_current
+    if BW.T_S_index is not None:
+        final_lambda_B = BW.lambda_B_current
+        final_gamma = [BW.gamma_current]
+    final_Q = BW.Q_current
+    final_ll = new_ll
+    final_LL_str = f'final log likelihood = {new_ll}'
+    change_LL = new_ll - BW.LLs[-1]
+    final_change_LL_str = f'final change in log likelihood = {change_LL}'
+    iterations_str = f'number of iterations taken = {BW.number_of_completed_iterations}'
+    theta_str = f'theta=4*N_E*mu = {BW.theta}'
+    rho_str = f'rho=4*N_E*r = {BW.rho/BW.bin_size}'
+
+    final_info_strings = [final_LL_str,final_change_LL_str,iterations_str,theta_str,rho_str]
+    for s in final_info_strings:
+        print(f'\t{s}')
+        
+    scaled_time = 0.5*BW.T_array*(BW.theta) # scale this to gens by dividing by mu. time_gens = scaled_time / mu
+    scaled_inverse_lambda =  (4*BW.lambda_A_current)/BW.theta # scale this to inverse pop sizes with N_E = (1/scaled_inverse_lambda)/mu 
+    
+    ltb = scaled_time[0:BW.D]
+    rtb = scaled_time[1:BW.D+1]
+
+    
+    scaletime_str = 'scale time by dividing by mu'
+    scalelambda_str = 'scale lambda by taking its inverse then dividing by mu'
+    final_info_strings.append(scaletime_str)
+    final_info_strings.append(scalelambda_str)
+
+    final_file = output_path + 'final_parameters.txt'
+    
+    if BW.T_S_index is None: # panmixia
+        final_array = np.zeros(shape=(BW.D,3))
+        final_array[:,0] = ltb
+        final_array[:,1] = rtb 
+        final_array[:,2] = scaled_inverse_lambda 
+        columns_str = 'col 0 is left time boundary; col 1 is right time boundary; col 3 is scaled_lambda_A'
+        footer = ''
+    elif BW.T_S_index is not None: # structure 
+        final_array = np.zeros(shape=(BW.D,4))
+        final_array[:,0] = ltb
+        final_array[:,1] = rtb 
+        final_array[:,2] = scaled_inverse_lambda 
+        scaled_inverse_lambda_B =  (4*BW.lambda_B_current)/BW.theta # scale this to inverse pop sizes with N_E = (1/scaled_inverse_lambda)/mu 
+        final_array[:,3] = scaled_inverse_lambda_B 
+        columns_str = 'col 0 is left time boundary; col 1 is right time boundary; col 3 is scaled_lambda_A; col 4 is scaled_lambda_B'
+        footer = f'gamma is {BW.gamma_current}'
+    final_info_strings.append(columns_str)
+    header = "\n".join(final_info_strings)
+    np.savetxt(final_file,final_array,comments='# ',header=header,footer=footer)
+    print(f'\n\tFinal output saved to {final_file}')
+
+    return None

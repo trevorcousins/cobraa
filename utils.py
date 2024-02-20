@@ -363,6 +363,49 @@ def get_posterior(BW,downsample,output_path,output_R_path):
 
     return None
 
+def get_posterior_path(BW,downsample,output_path,output_R_path):
+    # this computes the posterior probability
+    # the first row is the starting position of the current block of given bin size
+    sequence, B_sequence, B_vals,R_sequence, R_vals = BW.sequence_fcn(0)
+
+
+    
+    Q_current = BW.Q_current
+    # Q_current_array = write_Q_array_withR(tm_dummy.Q,R_vals,R_vals[np.argmin(np.abs(R_vals-1))],BW.D)
+    Q_current_array = np.array([Q_current])
+    forward, scales = forward_matmul_scaled_path_fcn(sequence=sequence,D=BW.D_flat,init_dist=BW.init_dist,E=BW.E_masked,Q=Q_current_array,bin_size=BW.bin_size,theta=BW.theta,midpoints=BW.midpoints,B_sequence=B_sequence,B_values=B_vals,R_sequence=R_sequence)
+
+    backward = backward_matmul_scaled_path_fcn(sequence=sequence,D=BW.D_flat,E=BW.E_masked,Q=Q_current_array,bin_size=BW.bin_size,theta=BW.theta,midpoints=BW.midpoints,scales=scales,B_sequence=B_sequence,B_values=B_vals,R_sequence=R_sequence) # matmult, classic forward with matrix multiplication        
+
+    posterior = np.multiply(forward,backward)
+    posterior = posterior/posterior.sum(axis=0) # normalise
+
+    length = sequence.shape[0]
+    ll = np.sum(np.log(scales)) 
+    print(f'\tlog likelihood is {ll}')
+    position_array = np.arange(0,length,1)*BW.bin_size
+    position_posterior = np.zeros((posterior.shape[0]+1,posterior.shape[1])) 
+    position_posterior[0,:] = position_array
+    position_posterior[1:,:] = posterior
+    theta_str = f'theta=4*N_E*mu = {BW.theta}'
+    rho_str = f'rho=4*N_E*r = {BW.rho/BW.bin_size}'
+    binsize_str = f'bin_size = {BW.bin_size}'
+    description_str = f'first row is position'
+    LL_str = f'log likelihood is {ll}'
+    time_array = BW.T_array
+    time_array_string = ",".join([str(i) for i in time_array])
+    final_info_strings = [theta_str,rho_str,binsize_str,description_str,LL_str,time_array_string]
+    header = "\n".join(final_info_strings)
+    if downsample>1:
+        length = int(position_posterior.shape[1]/downsample)
+        position_posterior_downsample = np.zeros((position_posterior.shape[0],length))
+        for i in range(0,length):
+            position_posterior_downsample[:,i] = position_posterior[:,i*downsample]
+        position_posterior = position_posterior_downsample
+    np.savetxt(output_path, position_posterior,comments='# ',header=header)
+    print(f'\tsaved posteriors to {output_path}')
+    return None
+
 def get_B_sequence(B_file,seq_length,bin_size,ztype='B'):
     if B_file=='null':
         B_sequence = np.ones(seq_length,dtype=int)
@@ -548,6 +591,7 @@ def multiply_through(D,forward,b_emissions,Q_current_array,R_sequence,A_evidence
             A_evidence_new[ii,jj] = np.sum(forward[ii,0:-1]*b_emissions.T[:,jj]*Q_current_array[R_sequence[0:-1],ii,jj])
     return A_evidence_new
 
+
 def calculate_transition_evidence(sequence_fcn,file,D,init_dist,E_masked,Q_current_array,theta,rho,bin_size,j_max,midpoints,spread_1,spread_2,midpoint_transitions,jump_size=int(1e+05),stride_width=1000):
 # file is the label of file (int)
 
@@ -604,6 +648,63 @@ def calculate_transition_evidence(sequence_fcn,file,D,init_dist,E_masked,Q_curre
     # return A_evidence_new, ll
     return A_evidence, ll
 
+def calculate_transition_evidence_path(sequence_fcn,file,D,init_dist,E_masked,Q_current_array,theta,rho,bin_size,j_max,midpoints,spread_1,spread_2,midpoint_transitions,jump_size=int(1e+05),stride_width=1000):
+# file is the label of file (int)
+
+
+    # deletemedict = {}
+    # deletemedict[0] = Q_current_array
+    # deletemedictpath = '/home/trc468/deletemedict.pickle'
+    # with open(deletemedictpath,'wb') as f : pickle.dump(Q_current_array,f)
+    # with open(deletemedictpath,'rb') as f: deletemedict = pickle.load(f)
+    # Q_current_array = deletemedict
+    # Q_current_array[0:-1,:,:] = Q_current_array[-1,:,:]
+
+    # if B_vals[0]==0: # TODO REMOVE THIS; problem with length of B_stat file and mhs file
+        # B_vals[0]=1
+    sequence, B_sequence, B_vals, R_sequence, R_vals = sequence_fcn(file)
+    # calculate forward
+    # forward, scales = forward_matmul_scaled_fcn(sequence=sequence,D=D,init_dist=init_dist,E=E_masked,Q=Q_current)        
+    # ll = np.sum(np.log(scales))     
+    # backward = backward_matmul_scaled_fcn(sequence=sequence,D=D,E=E_masked,Q=Q_current,scales=scales) # matmult, classic forward with matrix multiplication
+    forward, scales = forward_matmul_scaled_path_fcn(sequence=sequence,D=D,init_dist=init_dist,E=E_masked,Q=Q_current_array,bin_size=bin_size,theta=theta,midpoints=midpoints,B_sequence=B_sequence,B_values=B_vals,R_sequence=R_sequence)
+    backward = backward_matmul_scaled_path_fcn(sequence=sequence,D=D,E=E_masked,Q=Q_current_array,bin_size=bin_size,theta=theta,midpoints=midpoints,scales=scales,B_sequence=B_sequence,B_values=B_vals,R_sequence=R_sequence) # matmult, classic forward with matrix multiplication        
+    ll = np.sum(np.log(scales))  
+    # backward_numba_normalscales = backward_matmul_scaled_fcn_numba(sequence=sequence,D=D,E=E_masked,Q=Q_current,scales=scales) # matmult, classic forward with matrix multiplication
+
+    # calculate A_evidence
+    # A = np.ones(shape=E_masked[:,sequence[1:]].shape)*-1
+    if max(B_vals)==min(B_vals):
+        emissions_sequence = E_masked[:,sequence[1:]]*B_vals[B_sequence[1:]]
+    else:
+        emissions_sequence = np.array([write_emission_probs_b_slice(D,bin_size,theta,midpoints,B_vals[B_sequence[i]],sequence[i]) for i in range(1,len(B_sequence))]).T
+
+    # emissions_sequence = E_masked[:,sequence[1:]]
+    b_emissions = np.multiply(backward[:,1:],emissions_sequence)
+    combined_forwardbackward = np.matmul(forward[:,0:-1],b_emissions.T)
+    if max(R_vals)==min(R_vals):
+        Q_current = Q_current_array[np.argmin(np.abs(R_vals-1)),:,:]
+        A_evidence = np.multiply(combined_forwardbackward,Q_current)
+    else:
+        # A_evidence_new = np.zeros(shape=(D,D))
+        # for ii in range(0,D):
+        #     for jj in range(0,D):
+        #         A_evidence_new[ii,jj] = np.sum(forward[ii,0:-1]*b_emissions.T[:,jj]*Q_current_array[R_sequence[0:-1],ii,jj])
+        A_evidence = np.einsum('il, lj, lij->ij', forward[:,0:-1], b_emissions.T, Q_current_array[R_sequence[0:-1],:,:])
+
+        # zA_evidence = np.zeros(shape=(len(R_vals),D,D))
+        # for w in range(0,len(R_vals)):
+        #     zindices = np.where(R_sequence==w)[0]
+        #     zindices = zindices[zindices!=b_emissions.shape[1]]
+        #     zcombined_forwardbackward = np.matmul(forward[:,zindices],b_emissions[:,zindices].T)
+        #     zA_evidence[w,:,:] = np.multiply(zcombined_forwardbackward,Q_current_array[w,:,:])
+        
+    # return zA_evidence, ll
+    # return A_evidence_newnew, ll
+    # return A_evidence_new, ll
+    return A_evidence, ll
+
+
 @njit 
 def forward_matmul_scaled_fcn(sequence,D,init_dist,E,Q,bin_size,theta,midpoints,B_sequence,B_values,R_sequence): # matmult, classic forward with matrix multiplication
     # L = len(sequence) # length of sequence
@@ -628,6 +729,7 @@ def forward_matmul_scaled_fcn(sequence,D,init_dist,E,Q,bin_size,theta,midpoints,
     for i in range(0,L-1):
         # if B_values[B_sequence[i+1]]<0.95:
         # emissions_transitions_pos = E[:,sequence[i+1]]*np.dot(f_[i,:],Q) 
+        # emissions_transitions_pos = E[:,sequence[i+1]]*np.dot(f_[i,:],Q[R_sequence[i+1],:,:].copy()) 
         
         emissions_transitions_pos = write_emission_probs_b_slice(D,bin_size,theta,midpoints,B_values[B_sequence[i+1]],sequence[i+1])*np.dot(f_[i,:],Q[R_sequence[i+1],:,:].copy()) 
         # emissions_transitions_pos = write_emission_probs_b_slice(D,bin_size,theta,midpoints,B_values[B_sequence[i+1]],sequence[i+1])*np.dot(f_[i,:],zQ) 
@@ -640,6 +742,39 @@ def forward_matmul_scaled_fcn(sequence,D,init_dist,E,Q,bin_size,theta,midpoints,
         f_[i+1,:] = emissions_transitions_pos/s
     return f_.transpose(), scales
 
+
+@njit 
+def forward_matmul_scaled_path_fcn(sequence,D,init_dist,E,Q,bin_size,theta,midpoints,B_sequence,B_values,R_sequence): # matmult, classic forward with matrix multiplication
+    # L = len(sequence) # length of sequence
+    # f_ = np.zeros(shape=(D,L)) # initialise forward variables
+    # scales = np.zeros(L) # intialise array to store scaled values
+    # scales[0]= sum(E[:,sequence[0]] * init_dist) # s(1)
+    # f_[:,0] = (E[:,sequence[0]] * init_dist)/scales[0] # f_(1); Assume uniform initial distribution, s1 = 0
+    # for i in range(0,L-1):
+    #     emissions_transitions_pos = E[:,sequence[i+1]]*np.dot(f_[:,i],Q)
+    #     s = sum(emissions_transitions_pos)
+    #     scales[i+1] = s # add s to array of scales
+    #     f_[:,i+1] = emissions_transitions_pos/s
+    # return f_, scales
+    L = len(sequence) # length of sequence
+    f_ = np.zeros(shape=(L,D)) # initialise forward variables
+    scales = np.zeros(L) # intialise array to store scaled values
+    scales[0]= sum(E[:,sequence[0]] * init_dist) # s(1) 
+    f_[0,:] = (E[:,sequence[0]] * init_dist)/scales[0] 
+    # zQ = np.copy(Q[0,:,:])
+    # scales[0]= sum(1 * init_dist) # s(1) # assume first element masked
+    # f_[0,:] = (1 * init_dist)/scales[0] # assume first element masked
+    for i in range(0,L-1):
+        # if B_values[B_sequence[i+1]]<0.95:
+        emissions_transitions_pos = E[:,sequence[i+1]]*np.dot(f_[i,:],Q[R_sequence[i+1],:,:].copy())
+        
+        # emissions_transitions_pos = write_emission_probs_b_slice(D,bin_size,theta,midpoints,B_values[B_sequence[i+1]],sequence[i+1])*np.dot(f_[i,:],Q[R_sequence[i+1],:,:].copy()) 
+        # emissions_transitions_pos = write_emission_probs_b_slice(D,bin_size,theta,midpoints,B_values[B_sequence[i+1]],sequence[i+1])*np.dot(f_[i,:],zQ) 
+
+        s = sum(emissions_transitions_pos)
+        scales[i+1] = s # add s to array of scales
+        f_[i+1,:] = emissions_transitions_pos/s
+    return f_.transpose(), scales
 
 
 
@@ -655,6 +790,18 @@ def backward_matmul_scaled_fcn(sequence,D,Q,bin_size,theta,midpoints,E,scales,B_
         b_[j,:] = np.dot(emissions_A,b_[j+1,:])/scales[j] # emissions*Q*b
     return b_.transpose()
 
+@njit
+def backward_matmul_scaled_path_fcn(sequence,D,Q,bin_size,theta,midpoints,E,scales,B_sequence,B_values,R_sequence):
+    L = len(sequence) # length of sequence
+    b_ = np.zeros(shape=(L,D)) # initialise backward variables, only storing present and previous
+    b_[L-1,:] = np.ones(D)/scales[-1] # uniform 1 to initiatilse backward   
+    for i in range(L-1):
+        j = L-2-i
+        emissions_A = np.multiply(Q[R_sequence[j+1]],E[:,sequence[j+1]]) # emissions*Q
+        # emissions_A = np.multiply(Q[R_sequence[j+1]],write_emission_probs_b_slice(D,bin_size,theta,midpoints,B_values[B_sequence[j+1]],sequence[j+1])) # emissions*Q
+        b_[j,:] = np.dot(emissions_A,b_[j+1,:])/scales[j] # emissions*Q*b
+    return b_.transpose()
+
 
 @njit 
 def write_emission_probs_b_slice(D,L,theta,midpoints,b,seq):
@@ -666,7 +813,7 @@ def write_emission_probs_b_slice(D,L,theta,midpoints,b,seq):
     j = int(np.mod(seq,L)) # number of hets
     m = int(np.floor(seq/L)) # number of masks
     # midpoints=midpoints/b # old, tested this
-    midpoints=midpoints*b # different to /home/trc468/SPSMC_bs_mistake_230115
+    midpoints=midpoints*b 
     E = np.array([((( (L-m)*theta*midpoints[i])**j)*np.exp(-(L-m)*theta*midpoints[i]))/factorial_fcn(j) for i in range(0,D)])
     return E
 
@@ -692,6 +839,136 @@ def write_Q_array_withR(Qbase,R_vals,rho,D,spread_1,spread_2,lambda_A,midpoint_t
     Qbase_nodiag = Qbase_nodiag/recomb_probabilities
     zQ = zwrite_Q_array_withR(Qbase_nodiag,T,e_betas,R_vals,rho,D,spread_1,spread_2,lambda_A,midpoint_transitions)
     return zQ
+
+def write_emission_path_probs(D_flat,D,L,theta,j_max,T,ts,te,m=0):
+
+    # write emissions with Poisson; rate theta*L*t
+    # D is number of hidden states
+    # L is bin_size
+    # mu is per gen per bp mutation rate
+    # theta is scaled recomb rate, theta = 2*N*mu where 2N is the effective diploid size and mu is the per gen per bp mutation rate
+    # j_max is maximum number of mutations seen
+    # T is array of D times in coalescent time
+    # take midpoints of each interval
+    # m is number of masks in bin
+    if m>L:
+        print(f'Problem in fcn write_emission_probs. m={m}>L={L}')
+    midpoints = np.array([(T[i]+T[i+1])/2 for i in range(0,len(T)-1)])
+    # midpoints[-1] = (T[-2]+T[-2]+3)/2 # last interval is too big, so account for it
+    E = np.zeros(shape=(D_flat,j_max+1))
+    
+    BB_instruct_indices = get_BB_instruct_indices(D_flat,ts,te)
+    corresponding_BB_instruct_indices = [get_standard_index(i,D_flat,ts,te) for i in BB_instruct_indices]
+    BB_poststruct_indices = get_BB_poststruct_indices(D_flat,D,ts,te)
+    corresponding_BB_poststruct_indices = [get_standard_index(i,D_flat,ts,te) for i in BB_poststruct_indices]
+    AB_poststruct_indices = get_AB_poststruct_indices(D_flat,D,ts,te)
+    corresponding_AB_poststruct_indices = [get_standard_index(i,D_flat,ts,te) for i in AB_poststruct_indices]
+    path_indexes = [get_path_index(i,D,ts,te) for i in range(0,D)]
+
+
+
+    index = 0
+    for j in range(0,j_max+1):
+        # E[:,j] = np.array([((( (L-m)*theta*midpoints[i])**j)*np.exp(-(L-m)*theta*midpoints[i]))/np.math.factorial(j) for i in range(0,D)]) # update220117_1825
+        regular_E = np.array([((( (L-m)*theta*midpoints[i])**j)*np.exp(-(L-m)*theta*midpoints[i]))/np.math.factorial(j) for i in range(0,D)]) # update220117_1825
+        E[path_indexes,j] = regular_E # update220117_1825
+        E[BB_instruct_indices,j] = regular_E[corresponding_BB_instruct_indices]
+        E[BB_poststruct_indices,j] = regular_E[corresponding_BB_poststruct_indices]
+        E[AB_poststruct_indices,j] = regular_E[corresponding_AB_poststruct_indices]
+    return E
+
+def get_path_index(regular_index,D,ts,te):
+    # TODO FIX THIS 
+    if regular_index>=D:
+        print(f'index={regular_index} cannot be bigger than D={D}')
+        return None
+    te_path = ts + (te-ts)*2
+    if regular_index<ts:
+        path_index = regular_index
+    elif regular_index>=ts and regular_index<te:
+        path_index = ts + (regular_index-ts)*2
+    elif regular_index>=te:
+        path_index = te_path + (regular_index-te)*3
+    else:
+        print(f'mistake in get_path_index for row_path: row is {row}')
+    return path_index
+
+def get_D_flat(D,ts,te):
+    D_flat = get_path_index(D-1,D,ts,te) + 3
+    return D_flat
+
+def get_standard_index(path_index,D,ts,te):
+    
+    standard_path = []
+    for i in range(0,D):
+        standard_path.append((i,get_path_index(i,D,ts,te)))
+        if i>=ts and i<te:
+            standard_path.append((i,get_path_index(i,D,ts,te)+1))
+        elif i>=te:
+            standard_path.append((i,get_path_index(i,D,ts,te)+1))
+            standard_path.append((i,get_path_index(i,D,ts,te)+2))
+    
+    standard_index = [ standard_path[i][0] for i in range(0,D) if (standard_path[i][1] == path_index)][0]
+    return standard_index
+
+def get_A_indices(D_flat,ts,te):
+    A_indices = [i for i in range(0,ts)]
+    return A_indices
+
+def get_AA_instruct_indices(D_flat,ts,te):
+    AA_indices = [ts + (j)*2 for j in range(0,te-ts)]
+    return AA_indices
+
+def get_BB_instruct_indices(D_flat,ts,te):
+    BB_indices = [ts + ((j)*2+1) for j in range(0,te-ts)]
+    return BB_indices
+
+
+def get_AA_poststruct_indices(D_flat,D,ts,te):
+    AA_indices = [ts + (te-ts)*2 + (j)*3 for j in range(0,D-te)]
+    return AA_indices
+
+
+def get_BB_poststruct_indices(D_flat,D,ts,te):
+    BB_indices = [ts + (te-ts)*2+ (j)*3+1 for j in range(0,D-te)]
+    return BB_indices
+
+
+def get_AB_poststruct_indices(D_flat,D,ts,te):
+    AB_indices = [ts + (te-ts)*2 + (j)*3+2 for j in range(0,D-te)]
+    return AB_indices
+
+def write_emission_path_masked_probs(D_flat,D,L,theta,j_max,T,ts,te):
+    # write as 2 dimensional object: E_masked[(num_hets,num_masks),num_states] - 
+    # e.g. if bin_size = 100 and bin b has 35 masks and 4 hets, then the index will be 35*bin_size + 4 = 3504
+    # e.g. if bin_size = 100 and bin b has 1 mask and 0 hets, then the index will be 1*bin_size + 0 = 100
+    # e.g. if bin_size = 100 and bin b has 0 masks and 12 hets, then the index will be 0*bin_size + 12 = 12
+    # e.g. if bin_size = 100 and bin b has 99 masks and 1 het, then the index will be 99*bin_size + 1 = 9901
+    # thus of shape 
+    # note num_masks + num_hets per bin cannot exceed bin_size
+   
+    
+    BB_instruct_indices = get_BB_instruct_indices(D_flat,ts,te)
+    corresponding_BB_instruct_indices = [get_standard_index(i,D_flat,ts,te) for i in BB_instruct_indices]
+    BB_poststruct_indices = get_BB_poststruct_indices(D_flat,D,ts,te)
+    corresponding_BB_poststruct_indices = [get_standard_index(i,D_flat,ts,te) for i in BB_poststruct_indices]
+    AB_poststruct_indices = get_AB_poststruct_indices(D_flat,D,ts,te)
+    corresponding_AB_poststruct_indices = [get_standard_index(i,D_flat,ts,te) for i in AB_poststruct_indices]
+    path_indexes = [get_path_index(i,D,ts,te) for i in range(0,D)]
+
+    if L<=j_max:
+        E_masked = np.zeros(shape=( D_flat,(L+1)*L + j_max+1))
+
+        print(f'bin_size={L} < j_max ={j_max}')
+        # mask_sequence[self.sequences_info[file][1][0]] = self.sequences_info[file][1][1]*(j_max+1)
+        M = j_max+1
+        for k in range(0,L+1): # different possible bin sizes
+            E_masked[:,(k*M):(k*M)+j_max+1] = write_emission_path_probs(D_flat,D,L,theta,j_max,T,ts,te,k)
+    else:
+        E_masked = np.zeros(shape=( D_flat,(L)*L + j_max+1)) # num masks, num states, num hets
+        for k in range(0,L+1): # different possible bin sizes
+            E_masked[:,(k*L):(k*L)+j_max+1] = write_emission_path_probs(D_flat,D,L,theta,j_max,T,ts,te,k)
+    return E_masked
 
 @njit
 def zwrite_Q_array_withR(Qbase_nodiag,T,e_betas,R_vals,rho,D,spread_1,spread_2,lambda_A,midpoint_transitions):
@@ -750,3 +1027,25 @@ def multiply_me(zQ,freqs):
     for i,j in enumerate(freqs):
         zzQ[i,:,:] = zQ[i,:,:]*j
     return zzQ
+
+def sequence_fcn_utils(sequences_info,bin_size,file):
+    
+    het_sequence = np.zeros(int(sequences_info[file][3]/bin_size),dtype=int)
+    mask_sequence = np.zeros(int(sequences_info[file][3]/bin_size),dtype=int)
+    het_sequence[sequences_info[file][0][0]] = sequences_info[file][0][1]
+    j_max = sequences_info[0][2]
+    if bin_size <= j_max:
+        print(f'bin_size={bin_size} < j_max ={j_max}')
+        mask_sequence[sequences_info[file][1][0]] = sequences_info[file][1][1]*(j_max+1)
+    else:
+        mask_sequence[sequences_info[file][1][0]] = sequences_info[file][1][1]*bin_size
+    sequence = het_sequence + mask_sequence
+    B_sequence = sequences_info[file][6]
+    B_vals = sequences_info[file][7]
+    R_sequence = sequences_info[file][8]
+    R_vals = sequences_info[file][9]
+    # load Emissions here?
+    if B_vals[0]==0:
+        B_vals[0]=(B_vals[0]+B_vals[1])/2
+
+    return sequence, B_sequence, B_vals, R_sequence, R_vals

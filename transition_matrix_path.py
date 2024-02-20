@@ -1222,14 +1222,18 @@ def write_regular_Q_fcn(Q_path,Q_flat,D,T,T_S_index,T_E_index,lambda_A,lambda_B,
     return Q_reg
 
 
-def get_valid_indices_path(D,T_S_index,T_E_index,gamma):
+def get_valid_indices_path(D,D_flat_dim,T_S_index,T_E_index,gamma):
     # gamma_fixed; bool for pan or struct
-    D_flat_dim = T_S_index  + (T_E_index-T_S_index)*2 + (D - T_E_index)*3
+    if gamma==None:
+        gamma=0
     if gamma>0: # structured search
         valid_indices = np.ones(D_flat_dim)
     elif gamma<0: # structured search when optimising with Powell via Scipy. gamma SHOULD NOT be less than 0 but sometimes it is searched that way
         valid_indices = np.ones(D_flat_dim)
-    elif gamma==0: # pan search
+    elif gamma==0: # pan search TODO check this
+        if T_S_index==None:
+            T_S_index=D//2
+            T_E_index=T_S_index+1
         valid_indices = [1 for i in range(0,T_S_index)]
         for j in range(0,T_E_index - T_S_index):
             valid_indices = valid_indices + [1,0]
@@ -1290,12 +1294,12 @@ class Transition_Matrix_path:
 
 
 
-    def write_tm(self,lambda_A,lambda_B,T_s_index,T_e_index,gamma,rho,check=True,exponential=True,write_regular_Q=False,write_flat_Q=False):
+    def write_tm(self,lambda_A,lambda_B,T_S_index,T_E_index,gamma,rho,check=True,exponential=True,write_regular_Q=False,write_flat_Q=False):
         # must specify structured parameters (lambda_B,T_S_index,T_e_infex,gamma) even if undefined...in which case set them as None
         self.lambda_A = lambda_A
         self.lambda_B = lambda_B
-        self.T_S_index = T_s_index
-        self.T_E_index = T_e_index
+        self.T_S_index = T_S_index
+        self.T_E_index = T_E_index
         self.gamma = gamma
         self.rho = rho
         if self.T_S_index!=None:
@@ -1309,7 +1313,7 @@ class Transition_Matrix_path:
             self.T_S = None
             self.T_E = None
         if self.T_S_index==None:
-            self.D_flat_dim = D
+            self.D_flat_dim = self.D
         else:
             self.D_flat_dim = self.T_S_index  + (self.T_E_index-self.T_S_index)*2 + (self.D - self.T_E_index)*3
 
@@ -1320,7 +1324,7 @@ class Transition_Matrix_path:
             checkparams=check_all(self.D,self.T,self.lambda_A,self.lambda_B,self.T_S,self.T_E,self.gamma)
             if checkparams==1:
                 print('There is a problem in the parameters given!')
-        self.valid_indices = np.array(get_valid_indices_path(self.D,self.T_S_index,self.T_E_index,self.gamma))[:,np.newaxis]
+        self.valid_indices = np.array(get_valid_indices_path(self.D,self.D_flat_dim,self.T_S_index,self.T_E_index,self.gamma))[:,np.newaxis]
 
         # compute values for L function and K      
         L_s_A,L_s_B,L_A,L_B,L_Tse_s_A,L_Tse_s_B = L_precomputations(self.D,self.T,self.lambda_A,self.lambda_B,self.T_S_index,self.T_E_index,self.gamma,self.e_betas)
@@ -1342,7 +1346,6 @@ class Transition_Matrix_path:
 
         for k in range(0,3):
             self.Q_path[range(self.D),range(self.D),k,k] = 0 # make sure diagonals are 0...if optimising this make not be the case flag
-
 
 
         # TODO check this works and write diagonal for flat
@@ -1384,5 +1387,9 @@ class Transition_Matrix_path:
             return self.Q_flat
         else:
             return self.Q_path, self.Q_flat
-
-
+"""
+Q_path is of dimension (D,D,3,3)
+Q_flat is a flattened version of Q_path, is of dimension (D_flat_dim,D_flat_dim), it is row stochastic, where D_flat_dim= T_S_index  + (T_E_index-T_S_index)*2 + (D - T_E_index)*3
+    This is needed for standard Markov or HMM machinery
+Q_reg is a collapsed version of Q_flat, is of dimension (D,D), it is row stochastic, and is the same matrix as used by regular cobraa (or PSMC iff T_1 and T_2 are None or gamma=0)
+"""
