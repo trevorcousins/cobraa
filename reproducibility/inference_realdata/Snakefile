@@ -1,0 +1,153 @@
+import pdb
+import numpy as np 
+import pandas as pd
+
+def split_popsam(wildcards):
+    zpop = wildcards.popsam.split('_')[0]
+    zsam = wildcards.popsam.split('_')[1]
+    return zpop, zsam
+
+def get_mhs_files_allchroms(wildcards):
+    zpop, zsam = split_popsam(wildcards)
+    return [f'/home/tc557/rds/rds-durbin-group-8b3VcZwY7rY/projects/human/1000Genomes_30X/230213/{zpop}/{zsam}/mhs/chr{zchromz}.mhs' for zchromz in range(1,23)]
+
+def get_ouput_file_240106(wildcards):
+    return  f'/home/tc557/rds/hpc-work/PSMCplus_analysis_231026/231206/D_{wildcards.D}/b_{wildcards.b}/spread1_{wildcards.spread1}/spread2_{wildcards.spread2}/muoverr_{wildcards.muoverr}/iterations{wildcards.iterations}/thresh_{wildcards.thresh}/thetafixed_{wildcards.theta}/popsample_{wildcards.popsam}/pair_{wildcards.ts}_{wildcards.te}/lambdauprstruct_{wildcards.lambda_upr_struct}/lambdalwrstruct_{wildcards.lambda_lwr_struct}/gammauprbound_{wildcards.gamma_upr_bound}/lambdaBonevalue_lambdaAfree/final_parameters.txt'
+
+
+def get_params_from_ouput_file_240106(wildcards):
+    final_params_file = get_ouput_file_240106(wildcards)
+    with open(final_params_file) as f:
+        finallines = f.readlines()
+    ztheta = float([i for i in finallines if 'theta' in i ][0].split(' ')[-1])
+    zrho = float([i for i in finallines if 'rho' in i ][0].split(' ')[-1])
+    zgamma = float([i for i in finallines if 'gamma' in i ][0].split(' ')[-1])
+    
+    final_params = np.loadtxt(final_params_file)
+    lambdaA_parameters = final_params[:,2]*ztheta/4
+    lambdaB_parameters = final_params[:,3]*ztheta/4
+
+    logfile = final_params_file.replace('final_parameters.txt','log.txt')
+    with open(logfile) as f:
+        loglines = f.readlines()
+    zlambdaA = [i for i in loglines if 'lambda_A updated' in i][-1].split(' ')[2].split('\n')[0].split('[')[1].split(']')[0]
+    zlambdaB = [i for i in loglines if 'lambda_B updated' in i][-1].split(' ')[2].split('\n')[0].split('[')[1].split(']')[0]
+    zlambdaA_array = np.array([float(i) for i in zlambdaA.split(',')])
+    zlambdaB_array = np.array([float(i) for i in zlambdaB.split(',')])
+    if np.max(np.abs(zlambdaA_array - lambdaA_parameters))>1e-15:
+        print(f'PROBLEM; log lambdaA does not seem to be the same as final lambdaA')
+    if np.max(np.abs(zlambdaB_array - lambdaB_parameters))>1e-15:
+        print(f'PROBLEM; log lambdaB does not seem to be the same as final lambdaA')
+    return ztheta, zrho, zgamma, zlambdaA, zlambdaB
+
+
+pops = ['ACB','ASW','BEB','CDX','CEU','CHB','CHS','CLM','ESN','FIN','GBR','GIH','GWD','IBS','ITU','JPT','KHV','LWK','MSL','MXL','PEL','PJL','PUR','STU','TSI','YRI']
+numsamplesperpop = 1
+pops_samples = {}
+names_IDs = {}
+for pop in pops:
+    file_to_samples = f'/home/tc557/rds/rds-durbin-group-8b3VcZwY7rY/projects/human/1000Genomes_30X/230213/231103_samples_name_ID_{pop}.txt'
+    with open(file_to_samples,'r') as f:
+        lines = f.readlines()
+    pops_samples[pop] = [(line.split(' ')[0],line.split(' ')[1]) for line in lines]
+    for i in pops_samples[pop]:
+        names_IDs[i[0]] = i[1]
+pop_and_sample = []
+zpop_and_sample = []
+for zpop in pops:
+    for i in range(0,numsamplesperpop):
+        pop_and_sample.append(f'{zpop}_{pops_samples[zpop][i][0]}')
+        zpop_and_sample.append([zpop,pops_samples[zpop][i][0]])
+
+Ds = [32]
+bs = [100]
+spread1s = [0.075]
+spread2s = [50]
+iterationss = [150]
+
+threshs = [1]
+muoverrs = [1.5] # starting mu over r ratio
+
+ts_te_pairs = [(None,None)] # panmictic pair (i.e. PSMC pair)
+ts_range =  range(6,15) # range of T_1 and T_2 to search over
+te_range = range(17,28) 
+
+for i in ts_range:
+    for j in te_range:
+        ts_te_pairs.append((i,j))
+
+# if decoding, only decode composite likelikehood pair
+# ts_te_pairs = [(None,None),(13,21)] # composite ML pair
+
+
+lambda_upr_structs = [10]
+lambda_lwr_structs = [0.5] 
+gamma_upr_bounds = [0.5]
+
+lambda_B_params = {}
+lambda_B_params['free'] = '' # let N_B(t) be free
+lambda_B_params['fixed1'] = f'-lambda_B_segments {Ds[0]}*0' # constrain N_B to be constant
+fixedthetas = [0.0008]
+chroms = range(1,23)
+
+
+
+rule all:
+    input:
+        # [f'/home/tc557/rds/hpc-work/PSMCplus_analysis_231026/231206/D_{D}/b_{b}/spread1_{spread1}/spread2_{spread2}/muoverr_{muoverr}/iterations{iterations}/thresh_{thresh}/thetafixed_{theta}/popsample_{popsam}/pair_{ts_te[0]}_{ts_te[1]}/lambdauprstruct_{lambda_upr_struct}/lambdalwrstruct_{lambda_lwr_struct}/gammauprbound_{gamma_upr_bound}/lambdaBfree_lambdaAfree/final_parameters.txt' for theta in fixedthetas for D in Ds for b in bs for spread1 in spread1s for spread2 in spread2s for muoverr in muoverrs for iterations in iterationss for thresh in threshs for popsam in pop_and_sample for ts_te in ts_te_pairs for lambda_upr_struct in lambda_upr_structs for lambda_lwr_struct in lambda_lwr_structs for gamma_upr_bound in gamma_upr_bounds] # lambdaA free in struct period, lambdaB free in struct period, theta fixed     
+        [f'/home/tc557/rds/hpc-work/PSMCplus_analysis_231026/231206/D_{D}/b_{b}/spread1_{spread1}/spread2_{spread2}/muoverr_{muoverr}/iterations{iterations}/thresh_{thresh}/thetafixed_{theta}/popsample_{popsam}/pair_{ts_te[0]}_{ts_te[1]}/lambdauprstruct_{lambda_upr_struct}/lambdalwrstruct_{lambda_lwr_struct}/gammauprbound_{gamma_upr_bound}/lambdaBonevalue_lambdaAfree/final_parameters.txt' for theta in fixedthetas for D in Ds for b in bs for spread1 in spread1s for spread2 in spread2s for muoverr in muoverrs for iterations in iterationss for thresh in threshs for popsam in pop_and_sample for ts_te in ts_te_pairs for lambda_upr_struct in lambda_upr_structs for lambda_lwr_struct in lambda_lwr_structs for gamma_upr_bound in gamma_upr_bounds] # lambdaA free in struct period, lambdaB constvalue in struct period, with theta fixed        
+        # [f'/home/tc557/rds/hpc-work/PSMCplus_analysis_231026/231206/D_{D}/b_{b}/spread1_{spread1}/spread2_{spread2}/muoverr_{muoverr}/iterations{iterations}/thresh_{thresh}/thetafixed_{theta}/popsample_{popsam}/pair_{ts_te[0]}_{ts_te[1]}/lambdauprstruct_{lambda_upr_struct}/lambdalwrstruct_{lambda_lwr_struct}/gammauprbound_{gamma_upr_bound}/lambdaBonevalue_lambdaAfree/decoding_compositeLL240118/chr{zchromz}.txt.gz' for zchromz in chroms for theta in fixedthetas for D in Ds for b in bs for spread1 in spread1s for spread2 in spread2s for muoverr in muoverrs for iterations in iterationss for thresh in threshs for popsam in pop_and_sample for ts_te in ts_te_pairs for lambda_upr_struct in lambda_upr_structs for lambda_lwr_struct in lambda_lwr_structs for gamma_upr_bound in gamma_upr_bounds] # lambdaA free in struct period, lambdaB constvalue in struct period, with theta fixed, decoding
+
+
+rule thetafixed_run_cobraa_lambdaBoneval_lambdaAfree_thetafixed:
+    input:
+        mhsfiles = get_mhs_files_allchroms,
+    output:
+        outfile = '/home/tc557/rds/hpc-work/PSMCplus_analysis_231026/231206/D_{D}/b_{b}/spread1_{spread1}/spread2_{spread2}/muoverr_{muoverr}/iterations{iterations}/thresh_{thresh}/thetafixed_{theta}/popsample_{popsam}/pair_{ts}_{te}/lambdauprstruct_{lambda_upr_struct}/lambdalwrstruct_{lambda_lwr_struct}/gammauprbound_{gamma_upr_bound}/lambdaBonevalue_lambdaAfree/final_parameters.txt'
+    log:
+        '/home/tc557/rds/hpc-work/PSMCplus_analysis_231026/231206/D_{D}/b_{b}/spread1_{spread1}/spread2_{spread2}/muoverr_{muoverr}/iterations{iterations}/thresh_{thresh}/thetafixed_{theta}/popsample_{popsam}/pair_{ts}_{te}/lambdauprstruct_{lambda_upr_struct}/lambdalwrstruct_{lambda_lwr_struct}/gammauprbound_{gamma_upr_bound}/lambdaBonevalue_lambdaAfree/log.txt'
+    params:
+        outfile = lambda wildcards: f'/home/tc557/rds/hpc-work/PSMCplus_analysis_231026/231206/D_{wildcards.D}/b_{wildcards.b}/spread1_{wildcards.spread1}/spread2_{wildcards.spread2}/muoverr_{wildcards.muoverr}/iterations{wildcards.iterations}/thresh_{wildcards.thresh}/thetafixed_{wildcards.theta}/popsample_{wildcards.popsam}/pair_{wildcards.ts}_{wildcards.te}/lambdauprstruct_{wildcards.lambda_upr_struct}/lambdalwrstruct_{wildcards.lambda_lwr_struct}/gammauprbound_{wildcards.gamma_upr_bound}/lambdaBonevalue_lambdaAfree/',
+        ztheta = lambda wildcards: f'-theta {wildcards.theta}', # default theta (inferred from data),
+        zlambdaB = lambda wildcards: f'-lambda_B_segments 1*{wildcards.D}'
+        # zlambdaA = lambda wildcards: get_lambda_A_segments_oneparamstruct(wildcards)
+    shell:
+        'python /home/tc557/cobraa/cobraa.py -in {input.mhsfiles} -o {params.outfile} -D {wildcards.D} -b {wildcards.b} -mu_over_rho_ratio {wildcards.muoverr} {params.ztheta} -its {wildcards.iterations} -thresh {wildcards.thresh} -spread_1 {wildcards.spread1} -spread_2 {wildcards.spread2} -ts {wildcards.ts} -te {wildcards.te} -lambda_upr_struct {wildcards.lambda_upr_struct} -lambda_lwr_struct {wildcards.lambda_lwr_struct} -gamma_upr {wildcards.gamma_upr_bound} {params.zlambdaB} | tee {log}'
+
+rule thetafixed_decode_cobraa_lambdaBoneval_lambdaAfree_thetafixed:
+    input:
+        mhsfile = get_mhs_file_single,
+        inferred_params = '/home/tc557/rds/hpc-work/PSMCplus_analysis_231026/231206/D_{D}/b_{b}/spread1_{spread1}/spread2_{spread2}/muoverr_{muoverr}/iterations{iterations}/thresh_{thresh}/thetafixed_{theta}/popsample_{popsam}/pair_{ts}_{te}/lambdauprstruct_{lambda_upr_struct}/lambdalwrstruct_{lambda_lwr_struct}/gammauprbound_{gamma_upr_bound}/lambdaBonevalue_lambdaAfree/final_parameters.txt'
+    output:
+        decode_file = '/home/tc557/rds/hpc-work/PSMCplus_analysis_231026/231206/D_{D}/b_{b}/spread1_{spread1}/spread2_{spread2}/muoverr_{muoverr}/iterations{iterations}/thresh_{thresh}/thetafixed_{theta}/popsample_{popsam}/pair_{ts}_{te}/lambdauprstruct_{lambda_upr_struct}/lambdalwrstruct_{lambda_lwr_struct}/gammauprbound_{gamma_upr_bound}/lambdaBonevalue_lambdaAfree/decoding_compositeLL240118/chr{zchromz}.txt.gz'
+    log:
+        '/home/tc557/rds/hpc-work/PSMCplus_analysis_231026/231206/D_{D}/b_{b}/spread1_{spread1}/spread2_{spread2}/muoverr_{muoverr}/iterations{iterations}/thresh_{thresh}/thetafixed_{theta}/popsample_{popsam}/pair_{ts}_{te}/lambdauprstruct_{lambda_upr_struct}/lambdalwrstruct_{lambda_lwr_struct}/gammauprbound_{gamma_upr_bound}/lambdaBonevalue_lambdaAfree/decoding_compositeLL240118/chr{zchromz}_log.txt'
+    params:
+        zts = 13, # composite ML pair
+        zte = 21, # composite ML pair
+        theta_rho_gamma_lambdaA_lambdaB = lambda wildcards: get_params_from_ouput_file_240106(wildcards),
+        zD = 32,
+        zspread_1 = 0.075,
+        zspread_2 = 50
+    shell:
+        'python /home/tc557/cobraa/cobraa.py -in {input.mhsfile} -o {output.decode_file} -D {wildcards.D} -b {wildcards.b} -theta {params.theta_rho_gamma_lambdaA_lambdaB[0]} -rho {params.theta_rho_gamma_lambdaA_lambdaB[1]} -its 1 -thresh 1 -spread_1 {wildcards.spread1} -spread_2 {wildcards.spread2} -ts {params.zts} -te {params.zte} -gamma_fg {params.theta_rho_gamma_lambdaA_lambdaB[2]} -lambda_A_fg {params.theta_rho_gamma_lambdaA_lambdaB[3]} -lambda_B_fg {params.theta_rho_gamma_lambdaA_lambdaB[4]} -lambda_B_segments {wildcards.D}*1 -path -decode -decode_downsample 10 | tee {log}'
+
+
+
+rule thetafixed_run_cobraa_lambdaBfree_lambdaAfree_thetafixed:
+    input:
+        mhsfiles = get_mhs_files_allchroms,
+        # infileflag = '/home/tc557/rds/hpc-work/PSMCplus_analysis_231026/231206/D_{D}/b_{b}/spread1_{spread1}/spread2_{spread2}/muoverr_{muoverr}/iterations{iterations}/thresh_{thresh}/popsample_{popsam}/final_parameters.txt'
+    output:
+        outfile = '/home/tc557/rds/hpc-work/PSMCplus_analysis_231026/231206/D_{D}/b_{b}/spread1_{spread1}/spread2_{spread2}/muoverr_{muoverr}/iterations{iterations}/thresh_{thresh}/thetafixed_{theta}/popsample_{popsam}/pair_{ts}_{te}/lambdauprstruct_{lambda_upr_struct}/lambdalwrstruct_{lambda_lwr_struct}/gammauprbound_{gamma_upr_bound}/lambdaBfree_lambdaAfree/final_parameters.txt'
+    log:
+        '/home/tc557/rds/hpc-work/PSMCplus_analysis_231026/231206/D_{D}/b_{b}/spread1_{spread1}/spread2_{spread2}/muoverr_{muoverr}/iterations{iterations}/thresh_{thresh}/thetafixed_{theta}/popsample_{popsam}/pair_{ts}_{te}/lambdauprstruct_{lambda_upr_struct}/lambdalwrstruct_{lambda_lwr_struct}/gammauprbound_{gamma_upr_bound}/lambdaBfree_lambdaAfree/log.txt'
+    params:
+        outfile = lambda wildcards: f'/home/tc557/rds/hpc-work/PSMCplus_analysis_231026/231206/D_{wildcards.D}/b_{wildcards.b}/spread1_{wildcards.spread1}/spread2_{wildcards.spread2}/muoverr_{wildcards.muoverr}/iterations{wildcards.iterations}/thresh_{wildcards.thresh}/thetafixed_{wildcards.theta}/popsample_{wildcards.popsam}/pair_{wildcards.ts}_{wildcards.te}/lambdauprstruct_{wildcards.lambda_upr_struct}/lambdalwrstruct_{wildcards.lambda_lwr_struct}/gammauprbound_{wildcards.gamma_upr_bound}/lambdaBfree_lambdaAfree/',
+        ztheta = lambda wildcards: f'-theta {wildcards.theta}', # default theta (inferred from data),
+        zlambdaB = lambda wildcards: f''
+        # zlambdaA = lambda wildcards: get_lambda_A_segments_oneparamstruct(wildcards)
+    shell:
+        'python /home/tc557/cobraa/cobraa.py -in {input.mhsfiles} -o {params.outfile} -D {wildcards.D} -b {wildcards.b} -mu_over_rho_ratio {wildcards.muoverr} {params.ztheta} -its {wildcards.iterations} -thresh {wildcards.thresh} -spread_1 {wildcards.spread1} -spread_2 {wildcards.spread2} -ts {wildcards.ts} -te {wildcards.te} -lambda_upr_struct {wildcards.lambda_upr_struct} -lambda_lwr_struct {wildcards.lambda_lwr_struct} -gamma_upr {wildcards.gamma_upr_bound} {params.zlambdaB} | tee {log}'
+
+

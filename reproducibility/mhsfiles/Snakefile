@@ -1,0 +1,138 @@
+import pdb
+import os
+reference_HGDP = '/home/tc557/rds/rds-durbin-group-8b3VcZwY7rY/projects/human/HGDP/downloaded_220412/GRCh38_full_analysis_set_plus_decoy_hla.fa' # reference for GRCh38 (hg20). Needs to be downloaded
+bamCaller_script='/home/tc557/cobraa/reproducibility/mhsfiles/bamCaller.py' # script written by Stephan Schiffels to call variants from a bam
+generatemhs_script='/home/tc557/cobraa/reproducibility/mhsfiles/generate_multihetsep.py' # script written by Aylwyn Scally to write a mask bed from a bam file 
+mappability_mask_file='/home/tc557/rds/rds-durbin-group-8b3VcZwY7rY/projects/human/HGDP/GRCh38_ref/strict_perchrom/' # mappability mask for GRCh38, will need to be downloaded
+
+meancovfile = '/home/tc557/twin_peaks/twin_peaks/snakemake_1000Genomes_230213/meancoverage_240212.txt'
+
+
+def get_cram_file(wildcards):
+    ID = names_IDs[wildcards.samplename]
+    path_to_cram = f'/home/tc557/rds/rds-durbin-group-8b3VcZwY7rY/projects/human/1000Genomes_30X/crumble/GRCh38/{ID}.cram.crumble'
+    return path_to_cram
+
+def get_mean_coverage(file):
+    bashcommand = f"samtools depth -r chr20 {file} | awk '{{sum += $3}} END {{print sum / NR}}'"
+    print(f'bashcommand is {bashcommand}')
+    stream = os.popen(bashcommand)
+    meancov = stream.readlines()[0]
+    meancov = float(meancov)
+    zoutfile = '/home/tc557/twin_peaks/twin_peaks/snakemake_1000Genomes_230213/meancov_240212' + file.split('230213')[1].split('/bams')[0].replace('/','_') + '.txt'
+    f = open(zoutfile, "a")
+    f.write('meancov for {file} is {meancov}')
+    f.close()
+    print(f'meancov for {file} is {meancov}')
+    return meancov
+
+def get_mean_coverage_fcncommandline(file):
+    commandline = f"`samtools depth -r chr20 {file} | awk '{{sum += $3}} END {{print sum / NR}}'`"
+    return commandline
+
+def get_mean_coverage_2301109(wildcards):
+    with open('/home/tc557/twin_peaks/twin_peaks/snakemake_1000Genomes_230213/bamfiles_meancov_chr20_231109.txt','r') as f:
+        lines = f.readlines()
+    line = [line for line in lines if wildcards.zpop in line and wildcards.samplename in line][0]
+    meancov = float(line.split(' ')[-1])
+    return meancov
+
+def get_posterior_means(wildcards):
+    files = [f'/home/tc557/rds/rds-durbin-group-8b3VcZwY7rY/projects/twin_peaks/genomes/human/HGDP/MSMC2_inference/HGDP_shortrepeatmask/D_{wildcards.D}/theta_{wildcards.theta}/rhoOvermu_{wildcards.rhoOvermu}/stridewidth_{wildcards.stride_width}/iterations_{wildcards.iterations}/{wildcards.sample}/decoding/posterior_means/chr{CHROM}.txt' for CHROM in range(1,23)]    
+    return files
+
+def debug_me(wildcards):
+    pdb.set_trace()
+    return None
+
+
+pops = ['ACB','ASW','BEB','CDX','CEU','CHB','CHS','CLM','ESN','FIN','GBR','GIH','GWD','IBS','ITU','JPT','KHV','LWK','MSL','MXL','PEL','PJL','PUR','STU','TSI','YRI']
+
+pops_samples = {}
+names_IDs = {}
+for pop in pops:
+    file_to_samples = f'/home/tc557/rds/rds-durbin-group-8b3VcZwY7rY/projects/human/1000Genomes_30X/230213/231103_samples_name_ID_{pop}.txt'
+    with open(file_to_samples,'r') as f:
+        lines = f.readlines()
+    pops_samples[pop] = [(line.split(' ')[0],line.split(' ')[1]) for line in lines]
+    for i in pops_samples[pop]:
+        names_IDs[i[0]] = i[1]
+
+
+num_samples = 4
+pop_sample = []
+for pop in pops:
+    for i in range(0,num_samples):
+        pop_sample.append( (pop,pops_samples[pop][i][0]) )
+
+
+pop_sample = [i for i in pop_sample]
+chroms = range(1,23)
+
+
+
+def get_mhs_files(wildcards):
+    files_mhs = [f'/home/tc557/rds/rds-durbin-group-8b3VcZwY7rY/projects/human/1000Genomes_30X/230213/{wildcards.zpop}/{wildcards.samplename}/mhs/chr{zchromz}.mhs' for zchromz in range(1,23)]    
+    return files_mhs
+
+def get_mhs_files_230227(wildcards):
+    files_mhs = [f'/home/tc557/rds/rds-durbin-group-8b3VcZwY7rY/projects/human/1000Genomes_30X/230213/{wildcards.zpop}/{wildcards.samplename}/mhs_230227/chr{zchromz}.mhs' for zchromz in range(1,23)]    
+    return files_mhs
+
+
+rule all: 
+    input:
+        [f'/home/tc557/rds/rds-durbin-group-8b3VcZwY7rY/projects/human/1000Genomes_30X/230213/{pop_sam[0]}/{pop_sam[1]}/mhs/chr{chrom}.mhs' for pop_sam in pop_sample for chrom in chroms] # write mhs
+       
+
+rule convert_cram_to_bam:
+    input:
+        infile = get_cram_file
+    output:
+        outfile = temp('/home/tc557/rds/rds-durbin-group-8b3VcZwY7rY/projects/human/1000Genomes_30X/230213/{zpop}/{samplename}/bams/aligned.bam') 
+    log:
+        '/home/tc557/rds/rds-durbin-group-8b3VcZwY7rY/projects/human/1000Genomes_30X/230213/{zpop}/{samplename}/bams/log.txt'
+    shell:
+        'samtools view -b -T /home/tc557/rds/rds-durbin-group-8b3VcZwY7rY/projects/human/HGDP/downloaded_220412/GRCh38_full_analysis_set_plus_decoy_hla.fa -o {output.outfile} {input.infile}'
+
+rule sort_bam:
+    input:
+        infile = '/home/tc557/rds/rds-durbin-group-8b3VcZwY7rY/projects/human/1000Genomes_30X/230213/{zpop}/{samplename}/bams/aligned.bam'
+    output:
+        outfile = temp('/home/tc557/rds/rds-durbin-group-8b3VcZwY7rY/projects/human/1000Genomes_30X/230213/{zpop}/{samplename}/bams/sorted_aligned.bam')
+    shell:
+        'samtools sort {input.infile} -o {output.outfile}'
+
+rule index_bam:
+    input:
+        infile = '/home/tc557/rds/rds-durbin-group-8b3VcZwY7rY/projects/human/1000Genomes_30X/230213/{zpop}/{samplename}/bams/sorted_aligned.bam'
+    output:
+        outfile = temp('/home/tc557/rds/rds-durbin-group-8b3VcZwY7rY/projects/human/1000Genomes_30X/230213/{zpop}/{samplename}/bams/sorted_aligned.bam.bai')
+    shell:
+        'samtools index {input.infile}'
+
+rule convert_bam_to_vcf_and_bed:
+    input:
+        fileflag = '/home/tc557/rds/rds-durbin-group-8b3VcZwY7rY/projects/human/1000Genomes_30X/230213/{zpop}/{samplename}/bams/sorted_aligned.bam.bai',
+        file = '/home/tc557/rds/rds-durbin-group-8b3VcZwY7rY/projects/human/1000Genomes_30X/230213/{zpop}/{samplename}/bams/sorted_aligned.bam'
+    output: 
+        vcffile = '/home/tc557/rds/rds-durbin-group-8b3VcZwY7rY/projects/human/1000Genomes_30X/230213/{zpop}/{samplename}/vcf_beds/chr{chrom}.vcf.gz',
+        bedfile = '/home/tc557/rds/rds-durbin-group-8b3VcZwY7rY/projects/human/1000Genomes_30X/230213/{zpop}/{samplename}/vcf_beds/chr{chrom}.bed.gz'
+    log: 
+        '/home/tc557/rds/rds-durbin-group-8b3VcZwY7rY/projects/human/1000Genomes_30X/230213/{zpop}/{samplename}/vcf_beds/{chrom}.txt'
+    params:
+        coverage = lambda wildcards: get_mean_coverage_fcncommandline(f'/home/tc557/rds/rds-durbin-group-8b3VcZwY7rY/projects/human/1000Genomes_30X/230213/{wildcards.zpop}/{wildcards.samplename}/bams/sorted_aligned.bam')
+    shell:
+        'bcftools mpileup -q 20 -Q 20 -C 50 -r chr{wildcards.chrom} -f /home/tc557/rds/rds-durbin-group-8b3VcZwY7rY/projects/human/HGDP/downloaded_220412/GRCh38_full_analysis_set_plus_decoy_hla.fa {input.file} | bcftools call -c -V indels | /home/tc557/ancestry/msmc2/bamCaller.py {params.coverage} {output.bedfile} | gzip -c > {output.vcffile}'
+
+rule convert_vcfs_beds_to_mhs:
+    input:
+        vcffile = '/home/tc557/rds/rds-durbin-group-8b3VcZwY7rY/projects/human/1000Genomes_30X/230213/{zpop}/{samplename}/vcf_beds/chr{chrom}.vcf.gz',
+        bedfile = '/home/tc557/rds/rds-durbin-group-8b3VcZwY7rY/projects/human/1000Genomes_30X/230213/{zpop}/{samplename}/vcf_beds/chr{chrom}.bed.gz',
+        mappability_mask = '/home/tc557/rds/rds-durbin-group-8b3VcZwY7rY/projects/human/HGDP/GRCh38_ref/strict_perchrom/chr{chrom}.bed',
+    output: 
+        mhsfile ='/home/tc557/rds/rds-durbin-group-8b3VcZwY7rY/projects/human/1000Genomes_30X/230213/{zpop}/{samplename}/mhs/chr{chrom}.mhs'
+    log: 
+        '/home/tc557/rds/rds-durbin-group-8b3VcZwY7rY/projects/human/1000Genomes_30X/230213/{zpop}/{samplename}/mhs/log_chr{chrom}.txt'
+    shell:
+        'python /home/tc557/ancestry/msmc2/generate_multihetsep.py --mask={input.bedfile} --mask={input.mappability_mask}  {input.vcffile} > {output.mhsfile}'
