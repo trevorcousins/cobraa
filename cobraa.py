@@ -93,8 +93,6 @@ parser.add_argument('-te','--T_E_index',help='Index of T_E, must be less than D 
 
 args = parser.parse_args()
 
-
-
 print(f'\nRunning cobraa; last updated 231031ymd; v1.1',flush=True)
 arguments = sys.argv[1:]
 command_line = 'python ' + ' '.join(['"{}"'.format(arg) if ' ' in arg else arg for arg in [sys.argv[0]] + arguments])
@@ -429,6 +427,3 @@ else: # do use path model
         get_posterior_path(BW,downsample,output_path,output_R_path)  
     else:
         print('\tError!',flush=True)
-
-
-# deleteme
