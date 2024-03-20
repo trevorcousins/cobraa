@@ -79,6 +79,9 @@ The argument `-decode` tells cobraa to decode the HMM, as opposed to inferring t
 
 Interpretting the output is not obvious, see the [Inference Tutorial](https://github.com/trevorcousins/cobraa/blob/main/tutorial/Inference_tutorial.ipynb) for how to parse this file. 
 
+# Usage 
+
+The commandlines we used for inference in real data in our paper are provided in this [Snakefile](https://github.com/trevorcousins/cobraa/blob/main/reproducibility/inference_realdata/Snakefile), and can used as a general usage guide. 
 
 # Advanced
 
