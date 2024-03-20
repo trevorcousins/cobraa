@@ -2,11 +2,11 @@
 
 A method for coalescence-based reconstruction of archaic admixture. *cobraa* is a hidden Markov model that uses a diploid sequence to infer population size changes and archaic admxiture with an unsampled population. It is an extension of the PSMC framework, which infers population size changes and assumes no admixture (i.e. panmixia). 
 
-The model of admixture that *cobraa* seeks to infer is as follows. Going forwards in time, an ancestral population splits cleanly into two populations A and B at time $T_2$; A and B remain in isolation until time $T_1$, at which point there is an admixture event where the admixed population derives $\gamma$ percent of its ancestry from B and $1-\gamma$ from A. All populations are allowed to vary in size over time. Thus, the model parameters are N_A(t), N_B(t), $\gamma$, $T_1$, and $T_2$. For convenience, the size changes of the admixed population (more recent than $T_1$), and the ancestral population (more ancient than $T_2$) are modelled as changes in $N_A(t)$.
+The model of admixture that *cobraa* seeks to infer is as follows. Going forwards in time, an ancestral population splits cleanly into two populations $A$ and $B$ at time $T_2$; $A$ and $B$ remain in isolation until time $T_1$, at which point there is an admixture event where the admixed population derives $\gamma$ percent of its ancestry from $B$ and $1-\gamma$ from $A$. All populations are allowed to vary in size over time. Thus, the model parameters are N_A(t), N_B(t), $\gamma$, $T_1$, and $T_2$. For convenience, the size changes of the admixed population (more recent than $T_1$), and the ancestral population (more ancient than $T_2$) are modelled as changes in $N_A(t)$.
 
-After the parameters have been inferred, *cobraa-path* (an extension of *cobraa*) can be used to infer regions of the genome that derive from A or B (or both). 
+After the parameters have been inferred, *cobraa-path* (an extension of *cobraa*) can be used to infer regions of the genome that derive from $A$ or $B$ (or both). 
 
-Care should be used when interpretting the fit of *cobraa*. We recommend comparing the fit of the model to a panmictic model as in PSMC, to see if admxiture is well supported.
+Care should be used when interpretting the fit of *cobraa*. We recommend comparing the fit of the model to a panmictic model as in PSMC, to see if admxiture is well supported. 
 
 ## Installation
 
@@ -31,7 +31,7 @@ If you are having problems, see the Troubleshooting section.
 
 ### Input files
 
-*cobraa* takes multi-hetsep (mhs) files as introduced by Stephan Schiffels. To generate these files, you can use [his tutorial](https://github.com/stschiff/msmc-tools/blob/master/msmc-tutorial/guide.md). If you have a CRAM/BAM file, you can use my [Snakefile](https://github.com/trevorcousins/PSMCplus/blob/master/Snakefiles/processing_data/Snakefile) as guide for how to process this into mhs files. 
+*cobraa* takes multi-hetsep (mhs) files as introduced by Stephan Schiffels. To generate these files, you can use [his tutorial](https://github.com/stschiff/msmc-tools/blob/master/msmc-tutorial/guide.md). If you have a CRAM/BAM file, you can use my [Snakefile](https://github.com/trevorcousins/cobraa/blob/main/reproducibility/mhsfiles/Snakefile) as guide for how to process this into mhs files. 
 
 ### Inference of population size changes and admixture
 
@@ -39,7 +39,7 @@ You can run *cobraa* with the following command line:
 
 ```python /path/to/installation/cobraa/cobraa.py -in <infiles> -D <D> -b <b> -ts {te} -te {te} -its <its> -o <outprefix> | tee <logfile>```
 
-`D` is the number of discrete time interval windows, `b` is the genomic bin size, `ts` is $T_1$, `te` is $T_2$, and `its` is the number of iterations (see the Advanced section for a more detailed explanation). `<infiles>` is a string (separated by a space if more than one) that points to the mhs files. The inferred parameters will be saved to `<outprefix>final_parameters.txt` and a log file will be saved to `<logfile>`. The output file contains `D` rows and 4 columns, which are the left time boundary, the right time boundary, and the coalescence rate per discrete time window in population $A$, and the coalescence rate per discrete time window in population $B$. To scale the times into generations, you must divide by `mu`. We get the effective population size by taking the inverse of the coalescence rate and dividing this by `mu`. Note that population $B$ only exists between `ts` and `te`.
+`D` is the number of discrete time interval windows, `b` is the genomic bin size, `ts` is $T_1$, `te` is $T_2$, and `its` is the number of iterations (see the Advanced section for a more detailed explanation). `<infiles>` is a string (separated by a space if more than one) that points to the mhs files. The inferred parameters will be saved to `<outprefix>final_parameters.txt` and a log file will be saved to `<logfile>`. The output file contains `D` rows and 4 columns, which are the left time boundary, the right time boundary, and the coalescence rate per discrete time window in population $A$, and the coalescence rate per discrete time window in population $B$. To scale the times into generations, you must divide by `mu`. We get the effective population size by taking the inverse of the coalescence rate and dividing this by `mu`. Note that population $B$ only exists between `ts` and `te`, and we must have `ts`<`te`<`D`.
 
 You can plot inference in Python using the following code:
 ```
@@ -67,7 +67,7 @@ lines(time, N_A, type="s", col="red")
 
 ```
 
-See the [Inference Tutorial notebook](https://github.com/trevorcousins/cobraa/blob/main/tutorial/Inference_tutorial.ipynb) for a specific example, and the Advanced section for a more detailed explanation of the hyperparameters. 
+See the [Inference Tutorial](https://github.com/trevorcousins/cobraa/blob/main/tutorial/Inference_tutorial.ipynb) notebook for a specific example, and the Advanced section for a more detailed explanation of the hyperparameters. 
 
 ### Decoding 
 
@@ -82,18 +82,25 @@ Interpretting the output is not obvious, see the [Inference Tutorial](https://gi
 
 # Advanced
 
-Here is a more in depth explanation of the hyperparameters for *cobraa*. Quick preliminaries: *cobraa* works in coalescent units, so uses `theta` and `rho`. `theta` is the scaled mutation rate and is equal to `4*N*mu` where `mu` is the rate per generation per base; `rho` is the scaled recombination rate and is equal to `4*N*r` where `r` is the rate per generation per neighbouring base pairs. In the previous sentence, `N` is the "long-term effective population size". The inferred parameters are scaled to time in years by a user-provided mutation rate per base pair per generation (`mu`) and generation time (`gen`), and to real units of `N` also by `mu`. 
+Here is a more in depth explanation of the hyperparameters for *cobraa*. Quick preliminaries: *cobraa* works in coalescent units, so uses `theta` and `rho`. `theta` is the scaled mutation rate and is equal to `4*N*mu` where `mu` is the rate per generation per base; `rho` is the scaled recombination rate and is equal to `4*N*r` where `r` is the rate per generation per neighbouring base pairs. In the previous sentence, `N` is the "long-term effective population size". The inferred parameters are scaled to time in years by a user-provided mutation rate per base pair per generation (`mu`) and generation time (`gen`), and to real units of `N` also by `mu`. Time is discretised into `D` windows, where the `D+1` boundaries are ~logarithmically spaced (see below).
 
 -D<br>
 The number of discrete time intervals. 
 
 Default behaviour is to use `D=32`.
 
+-ts, -te<br>
+The time indices of $T_1$ and $T_2$, respectively. 
+
+We must have `ts`<`te`<`D`. If you want to fit an unstructured model (i.e. panmictic, exactly as in PSMC), then you can do `-ts None -te None`, or just omit these arguments as default behaviour is to assume `ts=None`, `te=None`. If you are fitting a structured model with `D=32`, and want to fit populations size and admixture parameters with a divergence at the 18th index and an admxiture time at the 10th index, then you would do:
+
+```python /path/to/installation/cobraa/cobraa.py -in <infiles> -D 32 -b <b> -ts 10 -te 18 -its <its> -o <outprefix> | tee <logfile>```
+
 -o<br>
-The output prefix (if inferring $N_e$), or the output file (if decoding). 
+The output prefix (if inferring $N(t)$), or the output file (if decoding). 
 
 If you are inferring parameters, and you set `-o /path/to/installation/cobraa_inference/structure_` then the file describing the inferred parameters will be saved to `/path/to/installation/cobraa_inference/structure_final_parameters`. Default behaviour is to save to the current working directory. 
-If you are decoding and you set `-o /path/to/installation/cobraa+_inference/TMRCA_paths.txt.gz`, then the matrix of posterior distributions will be saved to `/path/to/installation/cobraa+_inference/TMRCA_paths.txt.gz`. You must give this argument if decoding. 
+If you are decoding and you set `-o /path/to/installation/cobraa_inference/TMRCA_paths.txt.gz`, then the matrix of posterior distributions will be saved to `/path/to/installation/cobraa_inference/TMRCA_paths.txt.gz`. You must give this argument if decoding. 
 
 -theta<br> 
 The scaled mutation rate, `theta = 4*N*mu`. 
@@ -135,29 +142,6 @@ You can bin the genome into windows of size `b`, which enforces the assumption t
 
 ```python /path/to/installation/cobraa/cobraa.py -in <infiles> -D <D> -b 100 -its <its> -o <outprefix> -rho_fixed | tee <logfile>```
 
--lambda_segments<br>
-Fix some adjacent time windows to have the same coalescence rate.
-
-You may want to force adjacent intervals to have the same coalescent rates, as in PSMC and MSMC/MSMC2, though I don't recommend this. For the undeterred, if for example you want to use 64 discrete time windows with the first 4 fixed to be the same, the next 20 in pairs of two, then the final 20 intervals to be free you can do: 
-
-```python /path/to/installation/cobraa/cobraa.py -in <infiles> -D <D> -b <b> -its <its> -o <outprefix> -lambda_segments 1*4,20*2,20*1 | tee <logfile>```
-
-so the argument is parsed as "1 lot of four fixed intervals, 20 lots of two, and 20 lots of one". If you don't want to infer parameters for some time windows, instead leaving it at its starting value, you can give it a "0". For example if you want 32 time windows with the first 10 to be fixed at their starting value, you can do: 
-
-```python /path/to/installation/cobraa/cobraa.py -in <infiles> -D <D> -b <b> -its <its> -o <outprefix> -lambda_segments 10*0,22*1 | tee <logfile>```
-
-Default behaviour is to assume all intervals are free.
-
--lambda_A_fg<br>
-The first guess for the inverse coalescence rates, in each discrete time interval. 
-
-A comma separated list of floats that are taken are used as the starting guess for the inverse coalescence rates. You should also use this to decode with the inferred population size parameters. The length of this list must be equal to the number of segments as specified by the `-lambda_segments` argument. If you have 10 discrete time intervals and know your inverse coalescence rates are [1,1,5,5,5,5,5,1,1,1] (a population that experiences a five-fold bottleneck) you can do:
-
-```python /path/to/installation/cobraa/cobraa.py -in <infiles> -D <D> -b <b> -its <its> -o inference/final_parameters.txt -lambda_A_fg 1,1,5,5,5,5,5,1,1,1 | tee <logfile>```
-
-Default behaviour is to assume `lambda_A_fg` is 1 everywhere. 
-See the [Inference Tutorial](https://github.com/trevorcousins/cobraa/blob/main/tutorial/Inference_tutorial.ipynb) for more information on this, especially for the decoding. 
-
 -its <br>
 Number of iterations of the EM algorithm. 
 
@@ -181,7 +165,36 @@ Default behaviour is to set `spread1=0.05` and `spread2=50`. Usage: if you want 
 
 ```python /path/to/installation/cobraa/cobraa.py -in <infiles> -D <D> -b <b> -its <its> -o <outprefix> -spread_1 0.05 -spread_2 50 | tee <logfile>```
 
-## Simulation
+-lambda_{A,B}_segments<br>
+Fix some adjacent time windows to have the same coalescence rate.
+
+If fitting an unstructured model, cobraa will fit changes in population $A$. If fitting a structured model, cobraa will fit changes in population $A$ and $B$. In either population, you may want to force adjacent intervals to have the same coalescent rates. If you want to use `D=32` with `ts=10` and `te=18` and fit population $A$ without constraints (i.e. "free") but want to enforce the size of $B$ to be constant, you can do 
+
+```python /path/to/installation/cobraa/cobraa.py -in <infiles> -D 32 -b <b> -its <its> -o <outprefix> -lambda_A_segments 32*1 -labda_B_segments 1*32 -ts <ts> -te <te> | tee <logfile>```
+
+so the argument is parsed as "32 free intervals of length 1" for $A$ and "1 free interval of length 32" for $B$. Note that population $B$ is only valid between `ts` and `te`. Default behaviour is to assume all intervals are free, though we found identifiability problems between $A$ and $B$, as well as runaway behaviour, so we recommend locking $B$ constant.
+
+-lambda_{A,B}_fg<br>
+The first guess for the inverse coalescence rates, in each discrete time interval. 
+
+A comma separated list of floats that are taken are used as the starting guess for the inverse coalescence rates. You should also use this to decode with the inferred population size parameters. The length of this list must be equal to the number of segments as specified by the `-lambda_segments` argument. If you have 10 discrete time intervals and know your inverse coalescence rates are [1,1,5,5,5,5,5,1,1,1] (a population that experiences a five-fold bottleneck) you can do:
+
+```python /path/to/installation/cobraa/cobraa.py -in <infiles> -D <D> -b <b> -its <its> -o inference/final_parameters.txt -lambda_A_fg 1,1,5,5,5,5,5,1,1,1 | tee <logfile>```
+
+-gamma_fg 
+The first guess for the admixture fraction. 
+
+When running inference, we found that as part of the EM algorithm the optimisation sometimes get stuck in local maxima. For this reason it is good to experiment with different starting values of `gamma`. Default behaviour to use `gamma_fg=0.2`. You should also use this for decoding with the inferred parameters. If you want to try inference with a first guess of `gamma=0.3` then you can do:
+
+```python /path/to/installation/cobraa/cobraa.py -in <infiles> -D <D> -b <b> -its <its> -o <outprefix> -gamma_fg 0.3 | tee <logfile>```
+
+If searching for a structured model, we recommend setting the first guess for `gamma` away from 0, otherwise the algorithm will likely will get stuck in the local optima corresponding to panmixia (`gamma=0`).
+
+## Bounding parameter searches
+
+To control runaway behaviour, you can set bounds on the parameters used. To control the lower and upper inverse coalescence rates, you can use `-lambda_lwr_bnd` and `-lambda_upr_bnd`, respectively. We can further control lambda behaviour in the structured period, with `-lambda_lwr_struct` and `-lambda_upr_struct`. We can also control the bounds on `gamma` with `-gamma_lwr` and `-gamma_upr`.
+
+# Simulation
 
 If you want to simulate a demography, you probably want to use msprime or SLiM as these are extremely powerful and flexible. However, I also provide functionality to simulate directly from the *cobraa* HMM (this is necessarily simulating from the SMC' model, which is marginally a very good approximation to the full coalescent with recombination - see [Wilton et al 2015](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4423375/)). An example command line to simulate a constant population size is:
 
