@@ -272,10 +272,6 @@ class BaumWelch:
                 optimised_params = res.x
             elif self.estimate_rho is True: # panmixia and rho
                 params_initial_guess = np.append(self.lambda_A_values,np.array([self.rho]))
-                # TODO update lower and upper bound of rho
-                # rho_lwr_bnd = 1e-09*2*2*5000*self.bin_size # arbitrarily choose lowest p=1e-09 and N=5000 (p is per gen per bp recomb rate). Scale by bin size # TODO CHOOSE BETTER BOUNDS
-                # rho_upr_bnd = 2e-08*2*2*20000*self.bin_size # arbitrarily choose greatest p=2e-08 and N = 20000 
-                # updated 240220
                 rho_lwr_bnd = 1e-16
                 rho_upr_bnd = 0.5
                 rho_boundaries = ((rho_lwr_bnd,rho_upr_bnd),)
@@ -354,11 +350,6 @@ class BaumWelch:
             # params_initial_guess = np.append(self.params_current,np.array([self.rho]))
             params_initial_guess = np.append(np.append(np.append(self.lambda_A_values,self.lambda_B_values),self.gamma_current),np.array([self.rho]))
 
-            # rho_lwr_bnd = 1e-09*2*2*5000*self.bin_size # arbitrarily choose lowest p=1e-09 and N=5000 (p is per gen per bp recomb rate). Scale by bin size
-            # rho_upr_bnd = 2e-07*2*2*20000*self.bin_size # arbitrarily choose greatest p=2e-08 and N = 20000 
-            # rho_lwr_bnd = 0.00001
-            # rho_upr_bnd = 0.1
-            # updated 240220
             rho_lwr_bnd = 1e-16
             rho_upr_bnd = 0.5
             rho_boundaries = ((rho_lwr_bnd,rho_upr_bnd),)
