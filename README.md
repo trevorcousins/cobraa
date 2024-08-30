@@ -239,4 +239,7 @@ If you are still having problems, please submit a new issue.
 
 ## Citation
 
-If you use cobraa, please cite the following [paper](TODO): 
+If you use cobraa, please cite the following [paper](https://www.biorxiv.org/content/10.1101/2024.03.24.586479v1):
+
+
+*Cousins T, Scally A, Durbin R. A structured coalescent model reveals deep ancestral structure shared by all modern humans. bioRxiv. 2024:2024-03.
