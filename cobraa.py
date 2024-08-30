@@ -37,8 +37,8 @@ parser.add_argument('-mu_over_rho_ratio','--mu_over_rho_ratio',help='Starting ra
 parser.add_argument('-lambda_lwr','--lambda_lwr_bnd',help='Lower bound for lambda when searching for psc parameters',nargs='?',const=False,type=float,default=0.1)
 parser.add_argument('-lambda_upr','--lambda_upr_bnd',help='Upper bound for lambda when searching for psc parameters',nargs='?',const=False,type=float,default=50)
 
-parser.add_argument('-lambda_lwr_struct','--lambda_lwr_bnd_struct',help='Lower bound for lambda when searching for psc parameters in structured period',nargs='?',const=False,type=float,default=0.4)
-parser.add_argument('-lambda_upr_struct','--lambda_upr_bnd_struct',help='Upper bound for lambda when searching for psc parameters in structured period',nargs='?',const=False,type=float,default=2)
+parser.add_argument('-lambda_lwr_struct','--lambda_lwr_bnd_struct',help='Lower bound for lambda when searching for psc parameters in structured period',nargs='?',const=False,type=float,default=0.2)
+parser.add_argument('-lambda_upr_struct','--lambda_upr_bnd_struct',help='Upper bound for lambda when searching for psc parameters in structured period',nargs='?',const=False,type=float,default=5)
 
 parser.add_argument('-lambda_A_fg','--lambda_A_fg',help='First guess for lambda_A',nargs='?',const=False,type=str)
 parser.add_argument('-lambda_B_fg','--lambda_B_fg',help='First guess for lambda_A',nargs='?',const=False,type=str)
@@ -86,7 +86,7 @@ You can also sepcify a different starting guess, then fix that too:
 gives lambda_array=[1,1,1,1,2,2,2,2,3,3,3,3], where the values at 2 are fixed.
 """
 parser.add_argument('-gamma_lwr','--gamma_lwr_bnd',help='Lower bound for gamma when searching for struct parameters',nargs='?',const=False,type=float,default=0)
-parser.add_argument('-gamma_upr','--gamma_upr_bnd',help='Upper bound for gamma when searching for struct parameters',nargs='?',const=False,type=float,default=1)
+parser.add_argument('-gamma_upr','--gamma_upr_bnd',help='Upper bound for gamma when searching for struct parameters',nargs='?',const=False,type=float,default=0.5)
 parser.add_argument('-gamma_fg','--gamma_fg',help='First guess for gamma.',nargs='?',const=False,type=float,default=0.2)
 parser.add_argument('-ts','--T_S_index',help='Index of T_S, must be less than D (can be "None" for panmixia)',nargs='?', const='None',type=str,default='None')
 parser.add_argument('-te','--T_E_index',help='Index of T_E, must be less than D (can be "None" for panmixia)',nargs='?', const='None',type=str,default='None')

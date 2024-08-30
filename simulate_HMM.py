@@ -154,7 +154,7 @@ elif gamma!=None and ts!=None and te!=None:
         print(f'ts={ts} and te={te}; but ts must be smaller than te. Aborting')
         sys.exit()
 else:
-    print(f'Input parameters not valid. Aborting.')
+    print(f'ERROR: Input parameters not valid. Aborting. If simulating structure, the following parameters must be give: gamma, ts, te. (lambda_B is optional, assumed const)')
     sys.exit()
 if o_coal==None:
     now = datetime.now()
