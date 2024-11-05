@@ -37,7 +37,7 @@ If you are having problems, see the Troubleshooting section.
 
 You can run *cobraa* with the following command line: 
 
-```python /path/to/installation/cobraa/cobraa.py -in <infiles> -D <D> -b <b> -ts {te} -te {te} -its <its> -o <outprefix> | tee <logfile>```
+```python /path/to/installation/cobraa/cobraa.py -in <infiles> -D <D> -b <b> -ts {ts} -te {te} -its <its> -o <outprefix> | tee <logfile>```
 
 `D` is the number of discrete time interval windows, `b` is the genomic bin size, `ts` is $T_1$, `te` is $T_2$, and `its` is the number of iterations (see the Advanced section for a more detailed explanation). `<infiles>` is a string (separated by a space if more than one) that points to the mhs files. The inferred parameters will be saved to `<outprefix>final_parameters.txt` and a log file will be saved to `<logfile>`. The output file contains `D` rows and 4 columns, which are the left time boundary, the right time boundary, and the coalescence rate per discrete time window in population $A$, and the coalescence rate per discrete time window in population $B$. To scale the times into generations, you must divide by `mu`. We get the effective population size by taking the inverse of the coalescence rate and dividing this by `mu`. Note that population $B$ only exists between `ts` and `te`, and we must have `ts`<`te`<`D`.
 
@@ -175,7 +175,7 @@ If fitting an unstructured model, cobraa will fit changes in population $A$. If 
 
 ```python /path/to/installation/cobraa/cobraa.py -in <infiles> -D 32 -b <b> -its <its> -o <outprefix> -lambda_A_segments 32*1 -labda_B_segments 1*32 -ts <ts> -te <te> | tee <logfile>```
 
-so the argument is parsed as "32 free intervals of length 1" for $A$ and "1 free interval of length 32" for $B$. Note that population $B$ is only valid between `ts` and `te`. Default behaviour is to assume all intervals are free, though we found identifiability problems between $A$ and $B$, as well as runaway behaviour, so we recommend locking $B$ constant.
+so the argument is parsed as "32 free intervals of length 1" for $A$ and "1 free interval of length 32" for $B$. Note that population $B$ is only valid between `ts` and `te`. Default behaviour is to infer $A$ freely and lock $B$ constant. To infer $B$ freely you can do `-lambda_B_segments {ts}*0,{te-ts}*1,{D-te}*0`, so for `D=32` with `ts=10` and `te=18` this would be `-lambda_B_segments 10*0,8*1,14*0`
 
 -lambda_{A,B}_fg<br>
 The first guess for the inverse coalescence rates, in each discrete time interval. 

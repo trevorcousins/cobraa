@@ -363,7 +363,8 @@ elif STRUCTURE:
     gamma_fg = args.gamma_fg
     print(f'\tfirst guess for gamma is {gamma_fg}',flush=True)
     if args.lambda_B_segments is None:
-        lambda_B_segs_string = f"{T_S_input}*0,{T_E_input-T_S_input}*1,{D-T_E_input}*0"
+        # lambda_B_segs_string = f"{T_S_input}*0,{T_E_input-T_S_input}*1,{D-T_E_input}*0"
+        lambda_B_segs_string = f"1*{D}"
     else:
         lambda_B_segs_string = args.lambda_B_segments
     lambda_B_segs = write_segments(lambda_B_segs_string,D)
