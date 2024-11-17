@@ -1,8 +1,3 @@
-# This copies from msprime_simulation_220110.py
-# but allows looping over the simulation to save things in one go
-# WARNING so far i have only adapted it for the model pop_split_psc_pop_220207 (which calls psc_220207); other model's won't work 
-
-
 import msprime
 import numpy as np
 import argparse
@@ -2406,21 +2401,3 @@ else:
     print(f'num_recombs is {tmrca_data_all.shape[0]}',flush=True)
 
 sys.exit()
-
-# print(f'theta=2*2*N*mu={2*2*N*mu}')
-# print(f'(# hets)/L= {len(hets)/L}')
-# seems like (# hets)/L is a good estimate for theta=2*2*N*mu where mu is per gen per bp and N is diploid populations size
-# seems like (# marginal trees)/L is a good estimate for rho=2*2*N*p where p is per gen per bp and N is diploid populations size. Calculate this with len(tmrca_data)/L
-    
-# save hets 
-# save tmrca_data
-# python /home/tc557/ancestry/msprime_simulation_220110.py -p 1e-08 -mu 1.5e-08 -L 1e+06 -model pop_expansion220110 -it 0 -s 10 -e 18 -alpha 2 -D 30
-# python /home/tc557/ancestry/msprime_simulation_220216_combined.py -p 1e-08 -mu 1.5e-08 -L 1e+06 -model pop_split_psc_pop_220207 -it 3 -s 10 -e 18 -s_psc 5 -e_psc 8 -alpha 0.4 -beta 1 -D 30 -w
-# python /home/tc557/ancestry/msprime_simulation_220216_combined.py -p 1e-08 -mu 1.5e-08 -L 1e+06 -model pop_split_psc_pop_220312 -it 3 -s 10 -e 18 -s_psc 5 -e_psc 8 -alpha 0.4 -beta 1 -D 30 -pop_change A -w
-# python /home/tc557/ancestry/msprime_simulation_220110.py -p 1e-08 -mu 1.5e-08 -L 1e+06 -model const_pop220110 -it 0 -w
-
-# python /home/tc557/ancestry/msprime_simulation_220110.py -p 1e-08 -mu 1.5e-08 -L 1e+05 -model pop_expansion220110 -it 0 -s 10 -e 18 -alpha 2 -D 30 -sim_model smc_prime -w
-# python /home/tc557/ancestry/msprime_simulation_220110.py -p 1e-08 -mu 1.5e-08 -L 1e+05 -model pop_split_220114 -it 0 -s 10 -e 18 -alpha 0.3 -D 32  -w
-# python /home/tc557/ancestry/msprime_simulation_220110.py -p 1e-08 -mu 1.5e-08 -L 1e+05 -model pop_split_psc_pop_220119 -it 0 -s 10 -e 18 -alpha 0.3 -s_psc 12 -e_psc 17 -beta 2 -D 32  -pop_change A -w
-# python /home/tc557/ancestry/msprime_simulation_220110.py -p 1e-08 -mu 1.5e-08 -L 1e+05 -model matching_psc_pop_split_220120 -it 0 -s 10 -e 18 -alpha 0.3 -D 32 -w
-# python /home/tc557/ancestry/msprime_simulation_220110.py -p 1e-08 -mu 1.25e-08 -L 1e+05 -model pop_split_psc_pop_220207 -it 0 -s 11 -e 19 -alpha 0.35 -beta 0.3 -D 32 -w
