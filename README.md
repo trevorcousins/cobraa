@@ -199,7 +199,7 @@ To control runaway behaviour, you can set bounds on the parameters used. To cont
 
 # Simulation
 
-If you want to simulate a demography, you probably want to use msprime or SLiM as these are extremely powerful and flexible. However, I also provide functionality to simulate directly from the *cobraa* HMM (this is necessarily simulating from the SMC' model, which is marginally a very good approximation to the full coalescent with recombination - see [Wilton et al 2015](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4423375/)). An example command line to simulate a constant population size is:
+If you want to simulate a demography, you probably want to use msprime or SLiM as these are extremely powerful and flexible. For the simulations in our paper, I used this [Snakefile](https://github.com/trevorcousins/cobraa/blob/main/reproducibility/simulations/Snakefile); this could be used as a guide. I also provide functionality to simulate directly from the *cobraa* HMM (this is necessarily simulating from the SMC' model, which is marginally a very good approximation to the full coalescent with recombination - see [Wilton et al 2015](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4423375/)). An example command line to simulate a constant population size is:
 
 ```python /path/to/installation/cobraa/simulate_HMM.py -D 10 -theta 0.001 -rho 0.0005 -o_mhs simulations/sim1_variants.mhs -o_coal simulations/sim1_coal.txt.gz -spread_1 0.1 -spread_2 50 -L 1000000 -gamma 0.3 -ts 5 -te 8 ``` 
 
