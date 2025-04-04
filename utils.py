@@ -19,6 +19,7 @@ from joblib import Parallel, delayed
 import pickle
 from joblib import Parallel, delayed
 from scipy import linalg
+import math
 
 
 # Parse the given time segment pattern for lambda parameters
@@ -490,7 +491,7 @@ def write_emission_probs(D,L,theta,j_max,T,m=0,midpoint_end=True):
         # print('shape of abba is {}'.format(abba.shape))
         # print('shape of E[:,j] is {}'.format(E[:,j].shape))
         # E[:,j] = np.array([((( L*theta*midpoints[i])**j)*np.exp(-L*theta*midpoints[i]))/np.math.factorial(j) for i in range(0,D)]) # old, no masks
-        E[:,j] = np.array([((( (L-m)*theta*midpoints[i])**j)*np.exp(-(L-m)*theta*midpoints[i]))/np.math.factorial(j) for i in range(0,D)]) # update220117_1825
+        E[:,j] = np.array([((( (L-m)*theta*midpoints[i])**j)*np.exp(-(L-m)*theta*midpoints[i]))/math.factorial(j) for i in range(0,D)]) # update220117_1825
     
     return E
 

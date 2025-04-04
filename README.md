@@ -15,8 +15,9 @@ Care should be used when interpretting the fit of *cobraa*. We recommend compari
 ```
 conda create --name cobraa
 conda activate cobraa
-conda install numpy numba pandas joblib scipy psutil matplotlib
 git clone https://github.com/trevorcousins/cobraa.git
+cd ./cobraa
+conda install --yes --file requirements.txt
 ```
 
 To check whether the installation worked, you can run with some test data:<br>
