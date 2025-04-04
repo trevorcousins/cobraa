@@ -32,7 +32,7 @@ If you are having problems, see the Troubleshooting section.
 
 ### Input files
 
-*cobraa* takes multi-hetsep (mhs) files as introduced by Stephan Schiffels. To generate these files, you can use [his tutorial](https://github.com/stschiff/msmc-tools/blob/master/msmc-tutorial/guide.md). If you have a CRAM/BAM file, you can use my [Snakefile](https://github.com/trevorcousins/cobraa/blob/main/reproducibility/mhsfiles/Snakefile) as guide for how to process this into mhs files. 
+*cobraa* takes multi-hetsep (mhs) files as introduced by Stephan Schiffels. To generate these files, you can use [his tutorial](https://github.com/stschiff/msmc-tools/blob/master/msmc-tutorial/guide.md). If you have a CRAM/BAM file, you can use my [Snakefile](https://github.com/trevorcousins/cobraa/blob/main/reproducibility/mhsfiles/Snakefile) or [Converting.md](Converting.md) as guide for how to process this into mhs files. 
 
 ### Inference of population size changes and admixture
 
